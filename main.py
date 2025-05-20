@@ -1,0 +1,85 @@
+import pygame
+import math
+import numpy as np
+from typing import List, Tuple, Optional, Dict
+from definitions import (
+    SIMULATION_CONFIG, ROBOT_CONFIG, ENVIRONMENT_CONFIG,
+    LidarRobot, Environment
+)
+
+
+def main():
+    # Initialize environment
+    env = Environment(
+        width=ENVIRONMENT_CONFIG['width'],
+        height=ENVIRONMENT_CONFIG['height']
+    )
+    
+    # Create two robots with different colors
+    robot1 = LidarRobot(
+        x=1, y=1, theta=0,  # Moved to center of first room
+        color=ENVIRONMENT_CONFIG['colors']['robot1'],
+        **ROBOT_CONFIG
+    )
+    robot2 = LidarRobot(
+        x=9, y=9, theta=math.pi,  # Moved to center of second room
+        color=ENVIRONMENT_CONFIG['colors']['robot2'],
+        **ROBOT_CONFIG
+    )
+    robots = [robot1, robot2]
+    
+    running = True
+    dt = SIMULATION_CONFIG['dt']
+
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_u:
+                    env.toggle_uncertainty()
+                elif event.key == pygame.K_g:
+                    env.toggle_ground_truth()
+
+        # Handle keyboard input for robot 1 (WASD)
+        keys = pygame.key.get_pressed()
+        robot1.velocity = 0
+        robot1.angular_velocity = 0
+        
+        if keys[pygame.K_w]:
+            robot1.velocity = ROBOT_CONFIG['max_velocity']
+        if keys[pygame.K_s]:
+            robot1.velocity = -ROBOT_CONFIG['max_velocity']
+        if keys[pygame.K_a]:
+            robot1.angular_velocity = ROBOT_CONFIG['max_angular_velocity']
+        if keys[pygame.K_d]:
+            robot1.angular_velocity = -ROBOT_CONFIG['max_angular_velocity']
+
+        # Handle keyboard input for robot 2 (Arrow keys)
+        robot2.velocity = 0
+        robot2.angular_velocity = 0
+        
+        if keys[pygame.K_UP]:
+            robot2.velocity = ROBOT_CONFIG['max_velocity']
+        if keys[pygame.K_DOWN]:
+            robot2.velocity = -ROBOT_CONFIG['max_velocity']
+        if keys[pygame.K_LEFT]:
+            robot2.angular_velocity = ROBOT_CONFIG['max_angular_velocity']
+        if keys[pygame.K_RIGHT]:
+            robot2.angular_velocity = -ROBOT_CONFIG['max_angular_velocity']
+
+        # Update robot states
+        for robot in robots:
+            robot.update(dt, env.get_walls())
+            robot.get_lidar_readings(env.get_walls())
+        
+        # Draw everything
+        env.draw(robots)
+        
+        # Cap the frame rate
+        env.clock.tick(SIMULATION_CONFIG['fps'])
+
+    pygame.quit()
+
+if __name__ == "__main__":
+    main() 
