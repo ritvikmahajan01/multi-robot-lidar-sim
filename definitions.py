@@ -12,10 +12,10 @@ SIMULATION_CONFIG = {
 ROBOT_CONFIG = {
     'max_velocity': 2.0,
     'max_angular_velocity': 2.0,
-    'lidar_range': 5.0,
+    'lidar_range': 3.0,
     'lidar_angle_range': 180,
     'lidar_resolution': 1,
-    'radius': 0.1,
+    'radius': 0.1,  # Increased robot size for better visibility
     'sensor_noise': {
         'range_std': 0.0,  # Disabled range noise
         'angle_std': 0.0,  # Disabled angle noise
@@ -31,8 +31,8 @@ ROBOT_CONFIG = {
 }
 
 ENVIRONMENT_CONFIG = {
-    'width': 1200,  # Increased width
-    'height': 800,  # Increased height
+    'width': 1200,  # Reduced width
+    'height': 800,  # Reduced height
     'colors': {
         'robot1': (255, 0, 0),    # Red
         'robot2': (0, 0, 255),    # Blue
@@ -207,64 +207,80 @@ class Environment:
     def _create_walls(self) -> List[Tuple[Tuple[float, float], Tuple[float, float]]]:
         """Create walls and obstacles in the environment."""
         walls = []
-        # Outer walls (larger map)
+        # Outer walls
         walls.extend([
-            ((0, 0), (15, 0)),      # Bottom
-            ((0, 0), (0, 10)),      # Left
-            ((15, 0), (15, 10)),    # Right
-            ((0, 10), (15, 10))     # Top
+            ((0, 0), (12, 0)),      # Bottom
+            ((0, 0), (0, 8)),       # Left
+            ((12, 0), (12, 8)),     # Right
+            ((0, 8), (12, 8))       # Top
         ])
         
-        # Inner obstacles
+        # Multiple obstacle groups
+        # Group 1 - Bottom left
         walls.extend([
-            # First room
-            ((2, 2), (2, 4)),
-            ((2, 4), (4, 4)),
-            ((4, 4), (4, 2)),
-            ((4, 2), (2, 2)),
+            ((2, 1), (3, 1)),       # Horizontal wall
+            ((2, 1), (2, 2)),       # Vertical wall
+            ((3, 1), (3, 2)),       # Vertical wall
+            ((2, 2), (3, 2)),       # Horizontal wall
+        ])
+        
+        # Group 2 - Bottom right
+        walls.extend([
+            ((9, 1), (10, 1)),      # Horizontal wall
+            ((9, 1), (9, 2)),       # Vertical wall
+            ((10, 1), (10, 2)),     # Vertical wall
+            ((9, 2), (10, 2)),      # Horizontal wall
+        ])
+        
+        # Group 3 - Top left
+        walls.extend([
+            ((2, 6), (3, 6)),       # Horizontal wall
+            ((2, 6), (2, 7)),       # Vertical wall
+            ((3, 6), (3, 7)),       # Vertical wall
+            ((2, 7), (3, 7)),       # Horizontal wall
+        ])
+        
+        # Group 4 - Top right
+        walls.extend([
+            ((9, 6), (10, 6)),      # Horizontal wall
+            ((9, 6), (9, 7)),       # Vertical wall
+            ((10, 6), (10, 7)),     # Vertical wall
+            ((9, 7), (10, 7)),      # Horizontal wall
+        ])
+        
+        # Central obstacles
+        walls.extend([
+            # Central pillar
+            ((5.5, 3.5), (6.5, 3.5)), # Bottom
+            ((5.5, 3.5), (5.5, 4.5)), # Left
+            ((6.5, 3.5), (6.5, 4.5)), # Right
+            ((5.5, 4.5), (6.5, 4.5)), # Top
             
-            # Second room
-            ((6, 6), (6, 8)),
-            ((6, 8), (8, 8)),
-            ((8, 8), (8, 6)),
-            ((8, 6), (6, 6)),
+            # Additional central obstacles
+            ((4, 3), (5, 3)),         # Horizontal wall 1
+            ((7, 3), (8, 3)),         # Horizontal wall 2
+            ((4, 5), (5, 5)),         # Horizontal wall 3
+            ((7, 5), (8, 5)),         # Horizontal wall 4
             
-            # Third room
-            ((10, 2), (10, 4)),
-            ((10, 4), (12, 4)),
-            ((12, 4), (12, 2)),
-            ((12, 2), (10, 2)),
+            # Diagonal walls
+            ((3, 3), (4, 4)),         # Diagonal 1
+            ((8, 4), (9, 3)),         # Diagonal 2
+            ((3, 5), (4, 4)),         # Diagonal 3
+            ((8, 4), (9, 5)),         # Diagonal 4
             
-            # Fourth room
-            ((2, 6), (2, 8)),
-            ((2, 8), (4, 8)),
-            ((4, 8), (4, 6)),
-            ((4, 6), (2, 6)),
-            
-            # Corridors
-            ((4, 4), (6, 4)),
-            ((4, 6), (6, 6)),
-            ((8, 4), (10, 4)),
-            ((8, 6), (10, 6)),
-            
-            # Additional obstacles
-            ((7, 2), (7, 3)),
-            ((7, 3), (8, 3)),
-            ((8, 3), (8, 2)),
-            ((7, 2), (8, 2)),
-            
-            ((11, 6), (11, 7)),
-            ((11, 7), (12, 7)),
-            ((12, 7), (12, 6)),
-            ((11, 6), (12, 6))
+            # Small obstacles
+            ((4, 2), (4.5, 2)),       # Small wall 1
+            ((7.5, 2), (8, 2)),       # Small wall 2
+            ((4, 6), (4.5, 6)),       # Small wall 3
+            ((7.5, 6), (8, 6)),       # Small wall 4
         ])
         
         return walls
 
     def world_to_screen(self, x: float, y: float) -> Tuple[int, int]:
         """Convert world coordinates to screen coordinates."""
-        screen_x = int(x * self.width / 15)  # Adjusted for new map width
-        screen_y = int(self.height - y * self.height / 10)
+        screen_x = int(x * self.width / 12)  # Adjusted for new map width
+        screen_y = int(self.height - y * self.height / 8)  # Adjusted for new map height
         return (screen_x, screen_y)
 
     def draw(self, robots: List[LidarRobot]) -> None:
@@ -282,20 +298,20 @@ class Environment:
             # Draw robot position and direction
             pos = self.world_to_screen(robot.x, robot.y)
             direction = (
-                pos[0] + int(robot.radius * self.width/15 * math.cos(robot.theta)),
-                pos[1] - int(robot.radius * self.width/15 * math.sin(robot.theta))
+                pos[0] + int(robot.radius * self.width/12 * math.cos(robot.theta)),
+                pos[1] - int(robot.radius * self.width/12 * math.sin(robot.theta))
             )
-            pygame.draw.circle(self.screen, robot.color, pos, int(robot.radius * self.width/15))
+            pygame.draw.circle(self.screen, robot.color, pos, int(robot.radius * self.width/12))
             pygame.draw.line(self.screen, (0, 0, 0), pos, direction, 2)
             
             # Draw ground truth if enabled
             if self.show_ground_truth:
                 true_pos = self.world_to_screen(robot.true_x, robot.true_y)
                 true_direction = (
-                    true_pos[0] + int(robot.radius * self.width/15 * math.cos(robot.true_theta)),
-                    true_pos[1] - int(robot.radius * self.width/15 * math.sin(robot.true_theta))
+                    true_pos[0] + int(robot.radius * self.width/12 * math.cos(robot.true_theta)),
+                    true_pos[1] - int(robot.radius * self.width/12 * math.sin(robot.true_theta))
                 )
-                pygame.draw.circle(self.screen, (0, 0, 0), true_pos, int(robot.radius * self.width/15), 1)
+                pygame.draw.circle(self.screen, (0, 0, 0), true_pos, int(robot.radius * self.width/12), 1)
                 pygame.draw.line(self.screen, (0, 0, 0), true_pos, true_direction, 1)
             
             # Draw lidar readings

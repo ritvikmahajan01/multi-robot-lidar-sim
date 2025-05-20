@@ -17,12 +17,12 @@ def main():
     
     # Create two robots with different colors
     robot1 = LidarRobot(
-        x=1, y=1, theta=0,  # Moved to center of first room
+        x=1.0, y=1.0, theta=0,  # Clear area in bottom-left
         color=ENVIRONMENT_CONFIG['colors']['robot1'],
         **ROBOT_CONFIG
     )
     robot2 = LidarRobot(
-        x=9, y=9, theta=math.pi,  # Moved to center of second room
+        x=11.0, y=7.0, theta=math.pi,  # Clear area in top-right
         color=ENVIRONMENT_CONFIG['colors']['robot2'],
         **ROBOT_CONFIG
     )
