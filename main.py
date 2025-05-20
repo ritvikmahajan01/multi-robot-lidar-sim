@@ -30,6 +30,8 @@ def main():
     
     running = True
     dt = SIMULATION_CONFIG['dt']
+    frame_count = 0
+    print_interval = 10  # Print every 10 frames to avoid flooding the console
 
     while running:
         for event in pygame.event.get():
@@ -72,6 +74,23 @@ def main():
         for robot in robots:
             robot.update(dt, env.get_walls())
             robot.get_lidar_readings(env.get_walls())
+        
+        # Print sensor data and pose every few frames
+        if frame_count % print_interval == 0:
+            print("\n=== Robot 1 ===")
+            print(f"Estimated Pose: {robot1.get_pose()}")
+            print(f"Ground Truth Pose: {robot1.get_true_pose()}")
+            print(f"LiDAR Readings: {robot1.lidar_readings[:5]}...")  # Show first 5 readings
+            print(f"LiDAR Uncertainties: {robot1.lidar_uncertainties[:5]}...")  # Show first 5 uncertainties
+            
+            print("\n=== Robot 2 ===")
+            print(f"Estimated Pose: {robot2.get_pose()}")
+            print(f"Ground Truth Pose: {robot2.get_true_pose()}")
+            print(f"LiDAR Readings: {robot2.lidar_readings[:5]}...")  # Show first 5 readings
+            print(f"LiDAR Uncertainties: {robot2.lidar_uncertainties[:5]}...")  # Show first 5 uncertainties
+            print("\n" + "="*50)
+        
+        frame_count += 1
         
         # Draw everything
         env.draw(robots)
