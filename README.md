@@ -1,135 +1,69 @@
-# Lidar Robot Simulation
+# Multi-Robot LiDAR Simulation
 
-A modular 2D simulation of two robots with lidar sensing capabilities in an environment with multiple walled obstacles. The code is structured to make it easy to implement custom mapping algorithms.
+A Python-based simulation environment for multiple robots equipped with LiDAR sensors. This project demonstrates collaborative estimation and navigation in a shared environment.
 
 ## Features
 
-- 2D robot simulation with differential drive kinematics
-- Two robots with independent lidar sensors
-- Lidar sensor simulation with configurable range and resolution
-- Interactive environment with multiple walled obstacles
-- Real-time visualization of robot positions, orientations, and lidar readings
-- Separate keyboard controls for each robot
-- Modular code structure for easy extension
-
-## Project Structure
-
-```
-lidar_robot_sim/
-├── src/
-│   ├── robots/
-│   │   ├── __init__.py
-│   │   └── lidar_robot.py      # Robot class with lidar functionality
-│   ├── environment/
-│   │   ├── __init__.py
-│   │   └── environment.py      # Environment and visualization
-│   ├── utils/
-│   │   ├── __init__.py
-│   │   └── geometry.py         # Geometric utility functions
-│   └── main.py                 # Main simulation loop
-├── requirements.txt
-└── README.md
-```
+- Multiple robots with LiDAR sensors
+- Real-time visualization of robot positions and LiDAR readings
+- Collision detection and avoidance
+- Uncertainty visualization
+- Interactive control using keyboard inputs
 
 ## Requirements
 
-- Python 3.7+
-- NumPy
+- Python 3.7 or higher
 - Pygame
+- NumPy
 
 ## Installation
 
-1. Create a virtual environment (recommended):
+1. Clone the repository:
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+git clone https://github.com/ritvikmahajan01/multi-robot-lidar-sim.git
+cd multi-robot-lidar-sim
 ```
 
 2. Install the required packages:
 ```bash
-pip install -r requirements.txt
+pip install pygame numpy
 ```
 
-## Running the Simulation
+## Usage
 
-Run the simulation using:
+Run the simulation:
 ```bash
-python src/main.py
+python main.py
 ```
 
-## Controls
+### Controls
 
-### Red Robot (WASD):
-- W: Move forward
-- S: Move backward
-- A: Rotate counterclockwise
-- D: Rotate clockwise
+- **Robot 1 (Red)**:
+  - W: Move forward
+  - S: Move backward
+  - A: Rotate left
+  - D: Rotate right
 
-### Blue Robot (Arrow Keys):
-- Up Arrow: Move forward
-- Down Arrow: Move backward
-- Left Arrow: Rotate counterclockwise
-- Right Arrow: Rotate clockwise
+- **Robot 2 (Blue)**:
+  - Arrow Up: Move forward
+  - Arrow Down: Move backward
+  - Arrow Left: Rotate left
+  - Arrow Right: Rotate right
 
-## Visualization
+- **General**:
+  - Space: Toggle wall visibility
+  - ESC: Quit simulation
 
-- Red circle: First robot position
-- Blue circle: Second robot position
-- Blue line: Robot orientation
-- Green lines: Lidar readings
-- Black lines: Walls and obstacles
+## Project Structure
 
-## Extending the Simulation
+- `main.py`: Main simulation code containing robot and environment classes
+- `definitions.py`: Configuration parameters and constants
+- `.gitignore`: Git ignore rules for Python projects
 
-The code is structured to make it easy to implement custom mapping algorithms:
+<!-- ## Contributing
 
-1. The `LidarRobot` class provides:
-   - Robot state (position, orientation)
-   - Lidar readings
-   - Collision detection
+Feel free to submit issues and enhancement requests! -->
 
-2. The `Environment` class provides:
-   - Wall definitions
-   - Visualization
-   - World-to-screen coordinate conversion
+<!-- ## License
 
-3. The `utils` package provides:
-   - Geometric calculations
-   - Angle normalization
-   - Line intersection detection
-
-To implement a custom mapping algorithm:
-1. Create a new class in a new file (e.g., `src/mapping/your_mapping.py`)
-2. Use the lidar readings from the robot
-3. Update the map based on the robot's pose and sensor data
-4. Add visualization of your map in the `Environment` class
-
-## Example: Adding a Simple Mapping Algorithm
-
-```python
-# src/mapping/simple_mapping.py
-import numpy as np
-from typing import List, Tuple
-
-class SimpleMapping:
-    def __init__(self, resolution: float = 0.1):
-        self.resolution = resolution
-        self.map = np.zeros((200, 200))  # 20m x 20m map with 0.1m resolution
-        
-    def update(self, robot_pose: Tuple[float, float, float], 
-               lidar_readings: List[float]) -> None:
-        # Update map based on lidar readings
-        pass
-```
-
-Then in your main simulation:
-```python
-from mapping.simple_mapping import SimpleMapping
-
-# Initialize mapping
-mapping = SimpleMapping()
-
-# In the main loop
-for robot in robots:
-    mapping.update(robot.get_pose(), robot.lidar_readings)
-``` 
+This project is open source and available under the MIT License.  -->
