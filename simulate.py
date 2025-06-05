@@ -4,7 +4,7 @@ import numpy as np
 from typing import List, Tuple, Optional, Dict
 from definitions import (
     SIMULATION_CONFIG, ROBOT_CONFIG, ENVIRONMENT_CONFIG,
-    LidarRobot, Environment
+    LidarRobot, Environment, DataRecorder
 )
 
 
@@ -14,6 +14,9 @@ def main():
         width=ENVIRONMENT_CONFIG['width'],
         height=ENVIRONMENT_CONFIG['height']
     )
+    
+    # Initialize data recorder
+    data_recorder = DataRecorder('robot_data.npy')
     
     # Create two robots with different colors
     robot1 = LidarRobot(
@@ -36,12 +39,17 @@ def main():
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                # Save data before quitting
+                data_recorder.save_data()
                 running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_u:
                     env.toggle_uncertainty()
                 elif event.key == pygame.K_g:
                     env.toggle_ground_truth()
+                elif event.key == pygame.K_s:
+                    # Save data when 's' key is pressed
+                    data_recorder.save_data()
 
         # Handle keyboard input for robot 1 (WASD)
         keys = pygame.key.get_pressed()
@@ -75,20 +83,30 @@ def main():
             robot.update(dt, env.get_walls())
             robot.get_lidar_readings(env.get_walls())
         
+        # Record data for both robots
+        angles = np.linspace(-ROBOT_CONFIG['lidar_angle_range']/2, 
+                           ROBOT_CONFIG['lidar_angle_range']/2,
+                           int(ROBOT_CONFIG['lidar_angle_range']/ROBOT_CONFIG['lidar_resolution']))
+        
+        data_recorder.record_data('robot1', robot1.get_true_pose(),
+                                robot1.lidar_readings, angles, frame_count)
+        data_recorder.record_data('robot2', robot2.get_true_pose(),
+                                robot2.lidar_readings, angles, frame_count)
+        
         # Print sensor data and pose every few frames
-        if frame_count % print_interval == 0:
-            print("\n=== Robot 1 ===")
-            print(f"Estimated Pose: {robot1.get_pose()}")
-            print(f"Ground Truth Pose: {robot1.get_true_pose()}")
-            print(f"LiDAR Readings: {robot1.lidar_readings[:5]}...")  # Show first 5 readings
-            print(f"LiDAR Uncertainties: {robot1.lidar_uncertainties[:5]}...")  # Show first 5 uncertainties
+        # if frame_count % print_interval == 0:
+        #     print("\n=== Robot 1 ===")
+        #     print(f"Estimated Pose: {robot1.get_pose()}")
+        #     print(f"Ground Truth Pose: {robot1.get_true_pose()}")
+        #     print(f"LiDAR Readings: {robot1.lidar_readings[:5]}...")  # Show first 5 readings
+        #     print(f"LiDAR Uncertainties: {robot1.lidar_uncertainties[:5]}...")  # Show first 5 uncertainties
             
-            print("\n=== Robot 2 ===")
-            print(f"Estimated Pose: {robot2.get_pose()}")
-            print(f"Ground Truth Pose: {robot2.get_true_pose()}")
-            print(f"LiDAR Readings: {robot2.lidar_readings[:5]}...")  # Show first 5 readings
-            print(f"LiDAR Uncertainties: {robot2.lidar_uncertainties[:5]}...")  # Show first 5 uncertainties
-            print("\n" + "="*50)
+        #     print("\n=== Robot 2 ===")
+        #     print(f"Estimated Pose: {robot2.get_pose()}")
+        #     print(f"Ground Truth Pose: {robot2.get_true_pose()}")
+        #     print(f"LiDAR Readings: {robot2.lidar_readings[:5]}...")  # Show first 5 readings
+        #     print(f"LiDAR Uncertainties: {robot2.lidar_uncertainties[:5]}...")  # Show first 5 uncertainties
+        #     print("\n" + "="*50)
         
         frame_count += 1
         

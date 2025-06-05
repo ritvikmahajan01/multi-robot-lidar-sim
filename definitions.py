@@ -14,7 +14,7 @@ ROBOT_CONFIG = {
     'max_angular_velocity': 2.0,
     'lidar_range': 3.0,
     'lidar_angle_range': 180,
-    'lidar_resolution': 1,
+    'lidar_resolution': 2,
     'radius': 0.1,  # Increased robot size for better visibility
     'sensor_noise': {
         'range_std': 0.0,  # Disabled range noise
@@ -121,6 +121,7 @@ class LidarRobot:
                     distance = math.sqrt((intersection[0] - self.true_x)**2 + 
                                        (intersection[1] - self.true_y)**2)
                     min_distance = min(min_distance, distance)
+                
             
             # Add range noise and handle dropouts
             if np.random.random() < self.sensor_noise.get('dropout_prob', 0):
@@ -359,4 +360,64 @@ class Environment:
 
     def toggle_ground_truth(self) -> None:
         """Toggle visualization of ground truth."""
-        self.show_ground_truth = not self.show_ground_truth 
+        self.show_ground_truth = not self.show_ground_truth
+
+class DataRecorder:
+    def __init__(self, filename: str):
+        self.filename = filename
+        self.data = {
+            'robot1': {
+                'poses': [],  # List of (x, y, theta) tuples
+                'lidar_readings': [],  # List of (range, bearing) tuples
+                'timestamps': []  # List of frame numbers
+            },
+            'robot2': {
+                'poses': [],
+                'lidar_readings': [],
+                'timestamps': []
+            }
+        }
+        self.movement_threshold = 0.1  # 5cm movement threshold
+        self.angle_threshold = 0.1  # ~5.7 degrees rotation threshold
+        self.last_poses = {
+            'robot1': None,
+            'robot2': None
+        }
+
+    def should_record(self, robot_id: str, current_pose: Tuple[float, float, float]) -> bool:
+        """Check if we should record data based on movement threshold."""
+        if self.last_poses[robot_id] is None:
+            self.last_poses[robot_id] = current_pose
+            return True
+
+        last_x, last_y, last_theta = self.last_poses[robot_id]
+        current_x, current_y, current_theta = current_pose
+
+        # Calculate movement distance
+        movement = math.sqrt((current_x - last_x)**2 + (current_y - last_y)**2)
+        
+        # Calculate angle difference
+        angle_diff = abs(math.atan2(math.sin(current_theta - last_theta),
+                                  math.cos(current_theta - last_theta)))
+
+        if movement > self.movement_threshold or angle_diff > self.angle_threshold:
+            self.last_poses[robot_id] = current_pose
+            return True
+        return False
+
+    def record_data(self, robot_id: str, pose: Tuple[float, float, float],
+                   lidar_readings: List[float], lidar_angles: List[float],
+                   timestamp: int) -> None:
+        """Record robot data if movement threshold is met."""
+        if self.should_record(robot_id, pose):
+            self.data[robot_id]['poses'].append(pose)
+            self.data[robot_id]['timestamps'].append(timestamp)
+            
+            # Convert lidar readings to (range, bearing) pairs
+            lidar_data = list(zip(lidar_readings, lidar_angles))
+            self.data[robot_id]['lidar_readings'].append(lidar_data)
+
+    def save_data(self) -> None:
+        """Save recorded data to a .npy file."""
+        np.save(self.filename, self.data)
+        print(f"Data saved to {self.filename}") 
