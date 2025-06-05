@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from typing import Dict, List, Tuple
 import math
 
+
 def load_robot_data(filename: str) -> Dict:
     """Load robot data from .npy file."""
     data = np.load(filename, allow_pickle=True).item()

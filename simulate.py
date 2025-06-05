@@ -2,7 +2,7 @@ import pygame
 import math
 import numpy as np
 from typing import List, Tuple, Optional, Dict
-from definitions import (
+from utils import (
     SIMULATION_CONFIG, ROBOT_CONFIG, ENVIRONMENT_CONFIG,
     LidarRobot, Environment, DataRecorder
 )
