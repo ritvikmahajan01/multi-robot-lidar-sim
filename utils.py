@@ -14,10 +14,10 @@ ROBOT_CONFIG = {
     'max_angular_velocity': 2.0,
     'lidar_range': 3.0,
     'lidar_angle_range': 180,
-    'lidar_resolution': 2,
+    'lidar_resolution': 2, 
     'radius': 0.1,  # Increased robot size for better visibility
     'sensor_noise': {
-        'range_std': 0.0,  # Disabled range noise
+        'range_std': 0.01,  # Disabled range noise
         'angle_std': 0.0,  # Disabled angle noise
         'dropout_prob': 0.0,  # Disabled dropouts
         'min_range': 0.1,

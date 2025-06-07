@@ -245,7 +245,7 @@ def combine_maps(grid1: RobotOccupancyGrid, grid2: RobotOccupancyGrid, data: Dic
     prob2 = 1 - 1 / (1 + np.exp(grid2.log_odds))
     
     # Initialize combined map
-    combined_map = np.zeros_like(prob1)
+    combined_map = np.ones_like(prob1) * 0.5
     
     # Region where only robot1 has observations
     only_robot1 = region1 & ~region2
@@ -269,116 +269,95 @@ def combine_maps(grid1: RobotOccupancyGrid, grid2: RobotOccupancyGrid, data: Dic
     return combined_map
 
 def visualize_all_maps(grid1: RobotOccupancyGrid, grid2: RobotOccupancyGrid, data: Dict) -> None:
-    """Visualize the combined occupancy grid map."""
-    # Create a figure with two subplots side by side
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10))
-    
-    # Get combined map
-    combined_map = combine_maps(grid1, grid2, data)
-    
-    # Plot probability map
-    im1 = ax1.imshow(combined_map, origin='lower', extent=grid1.bounds,
-              cmap='RdYlBu_r', vmin=0, vmax=1)
-    plt.colorbar(im1, ax=ax1, label='Occupancy Probability')
-    ax1.set_title('Combined Probability Map')
-    ax1.set_xlabel('X (m)')
-    ax1.set_ylabel('Y (m)')
-    ax1.grid(True)
-    ax1.axis('equal')
-    
-    # Plot binary map
-    binary_map = (combined_map > 0.5).astype(float)
-    im2 = ax2.imshow(binary_map, origin='lower', extent=grid1.bounds,
-              cmap='binary', vmin=0, vmax=1)
-    plt.colorbar(im2, ax=ax2, label='Occupancy (Binary)')
-    ax2.set_title('Combined Binary Map')
-    ax2.set_xlabel('X (m)')
-    ax2.set_ylabel('Y (m)')
-    ax2.grid(True)
-    ax2.axis('equal')
-    
-    # Plot robot trajectories on both maps
-    for ax in [ax1, ax2]:
-        for robot_id, color in [('robot1', 'red'), ('robot2', 'blue')]:
-            poses = data[robot_id]['poses']
-            x_coords = [pose[0] for pose in poses]
-            y_coords = [pose[1] for pose in poses]
-            ax.plot(x_coords, y_coords, '-', label=f'{robot_id} trajectory', 
-                    color=color, alpha=0.5)
-            ax.plot(x_coords[0], y_coords[0], 'o', label=f'{robot_id} start',
-                    color=color)
-            ax.plot(x_coords[-1], y_coords[-1], 's', label=f'{robot_id} end',
-                    color=color)
-        ax.legend()
-    
-    # Adjust layout and display
-    plt.tight_layout()
+    """Visualize all maps separately."""
+    # 1. Robot 1's probability map
+    plt.figure(figsize=(12, 10))
+    grid1.visualize_map(data, 'robot1', show_probability=True)
+    plt.title('Robot 1 - Occupancy Grid Map (Probability)')
     plt.show()
 
-    # Original visualization code (commented out for later use)
-    """
-    # Create a figure with 2x3 subplots
-    fig, axes = plt.subplots(2, 3, figsize=(30, 20))
-    fig.suptitle('Occupancy Grid Maps Comparison', fontsize=16)
-    
-    # Robot 1 Probability Map
-    plt.sca(axes[0, 0])
-    grid1.visualize_map(data, 'robot1', show_probability=True)
-    
-    # Robot 1 Binary Map
-    plt.sca(axes[0, 1])
+    # 2. Robot 1's binary map
+    plt.figure(figsize=(12, 10))
     grid1.visualize_map(data, 'robot1', show_probability=False)
-    
-    # Robot 2 Probability Map
-    plt.sca(axes[1, 0])
+    plt.title('Robot 1 - Occupancy Grid Map (Binary)')
+    plt.show()
+
+    # 3. Robot 2's probability map
+    plt.figure(figsize=(12, 10))
     grid2.visualize_map(data, 'robot2', show_probability=True)
-    
-    # Robot 2 Binary Map
-    plt.sca(axes[1, 1])
+    plt.title('Robot 2 - Occupancy Grid Map (Probability)')
+    plt.show()
+
+    # 4. Robot 2's binary map
+    plt.figure(figsize=(12, 10))
     grid2.visualize_map(data, 'robot2', show_probability=False)
-    
-    # Combined Map
-    plt.sca(axes[0, 2])
+    plt.title('Robot 2 - Occupancy Grid Map (Binary)')
+    plt.show()
+
+    # 5. Combined probability map
+    plt.figure(figsize=(12, 10))
     combined_map = combine_maps(grid1, grid2, data)
     plt.imshow(combined_map, origin='lower', extent=grid1.bounds,
               cmap='RdYlBu_r', vmin=0, vmax=1)
-    plt.colorbar(label='Combined Occupancy Probability')
-    plt.title('Combined Map')
-    plt.xlabel('X (m)')
-    plt.ylabel('Y (m)')
-    plt.grid(True)
-    plt.axis('equal')
+    plt.colorbar(label='Occupancy Probability')
     
-    # Plot both robot trajectories on combined map
-    for robot_id, color in [('robot1', 'red'), ('robot2', 'blue')]:
+    # Plot both robot trajectories
+    for robot_id in ['robot1', 'robot2']:
         poses = data[robot_id]['poses']
         x_coords = [pose[0] for pose in poses]
         y_coords = [pose[1] for pose in poses]
+        color = 'red' if robot_id == 'robot1' else 'blue'
         plt.plot(x_coords, y_coords, '-', label=f'{robot_id} trajectory', 
                 color=color, alpha=0.5)
         plt.plot(x_coords[0], y_coords[0], 'o', label=f'{robot_id} start',
                 color=color)
         plt.plot(x_coords[-1], y_coords[-1], 's', label=f'{robot_id} end',
                 color=color)
-    plt.legend()
     
-    # Observation Regions
-    plt.sca(axes[1, 2])
-    region1 = grid1.get_observation_region('robot1', data)
-    region2 = grid2.get_observation_region('robot2', data)
-    plt.imshow(region1.astype(int) + region2.astype(int), origin='lower', 
-              extent=grid1.bounds, cmap='tab10', vmin=0, vmax=2)
-    plt.colorbar(label='Observation Regions (0: None, 1: Robot1, 2: Robot2)')
-    plt.title('Observation Regions')
+    plt.title('Combined Occupancy Grid Map (Probability) using weighted average of individual probability maps')
     plt.xlabel('X (m)')
     plt.ylabel('Y (m)')
     plt.grid(True)
     plt.axis('equal')
-    
-    # Adjust layout and display
-    plt.tight_layout()
+    plt.legend()
     plt.show()
-    """
+
+    # 6. Combined binary map
+    plt.figure(figsize=(12, 10))
+    binary_map = (combined_map > 0.5).astype(np.float32)
+    plt.imshow(binary_map, origin='lower', extent=grid1.bounds,
+              cmap='binary', vmin=0, vmax=1)
+    
+    # Plot both robot trajectories
+    for robot_id in ['robot1', 'robot2']:
+        poses = data[robot_id]['poses']
+        x_coords = [pose[0] for pose in poses]
+        y_coords = [pose[1] for pose in poses]
+        color = 'red' if robot_id == 'robot1' else 'blue'
+        plt.plot(x_coords, y_coords, '-', label=f'{robot_id} trajectory', 
+                color=color, alpha=0.5)
+        plt.plot(x_coords[0], y_coords[0], 'o', label=f'{robot_id} start',
+                color=color)
+        plt.plot(x_coords[-1], y_coords[-1], 's', label=f'{robot_id} end',
+                color=color)
+    
+    plt.title('Combined Occupancy Grid Map (Binary) using weighted average of individual probability maps')
+    plt.xlabel('X (m)')
+    plt.ylabel('Y (m)')
+    plt.grid(True)
+    plt.axis('equal')
+    plt.legend()
+    plt.show()
+
+    # Show observation regions in different figure
+    # plt.figure(figsize=(12, 10))
+    # region1 = grid1.get_observation_region('robot1', data)
+    # region2 = grid2.get_observation_region('robot2', data)
+    # plt.imshow(region1.astype(int) + region2.astype(int), origin='lower', 
+    #           extent=grid1.bounds, cmap='tab10', vmin=0, vmax=2)
+    # plt.colorbar(label='Observation Regions (0: None, 1: Robot1, 2: Robot2)')
+    # plt.title('Observation Regions')
+    # plt.show()
 
 def main():
     """Example usage of the RobotOccupancyGrid class."""

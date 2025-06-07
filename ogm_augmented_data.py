@@ -165,29 +165,17 @@ class OccupancyGrid:
                       cmap='RdYlBu_r', vmin=0, vmax=1)
             plt.colorbar(label='Occupancy Probability')
         else:
-            # Create a custom colormap for robot detections
-            # 0: unknown (white)
-            # 1: robot1 (red)
-            # 2: robot2 (blue)
-            # 3: both robots (purple)
-            colors = ['white', 'red', 'blue', 'purple']
-            cmap = plt.cm.colors.ListedColormap(colors)
+            # Get binary occupancy grid
+            occupancy = self.get_occupancy_grid()
             
-            # Create a mask for occupied cells
-            occupied = self.get_occupancy_grid()
-            # Combine occupancy and robot detection information
-            visualization = np.zeros_like(self.robot_detections, dtype=float)
-            visualization[occupied == 1] = self.robot_detections[occupied == 1]
+            # Show black and white occupancy map
+            plt.imshow(occupancy, origin='lower', extent=self.bounds,
+                      cmap='binary', vmin=0, vmax=1)
             
-            plt.imshow(visualization, origin='lower', extent=self.bounds,
-                      cmap=cmap, vmin=0, vmax=3)
-            
-            # Add custom legend
+            # Add legend for occupancy
             from matplotlib.patches import Patch
             legend_elements = [
-                Patch(facecolor='red', label='Robot 1 Detection'),
-                Patch(facecolor='blue', label='Robot 2 Detection'),
-                Patch(facecolor='purple', label='Both Robots Detection'),
+                Patch(facecolor='black', label='Occupied Space'),
                 Patch(facecolor='white', label='Free Space')
             ]
             plt.legend(handles=legend_elements, loc='upper right')
@@ -206,7 +194,10 @@ class OccupancyGrid:
                 plt.plot(x_coords[-1], y_coords[-1], 's', label=f'{robot_id} end',
                         color=color)
         
-        plt.title('Occupancy Grid Map with Robot Detections')
+        if show_probability:
+            plt.title('Occupancy Grid Map by combining data from both robots (Probability)')
+        else:
+            plt.title('Occupancy Grid Map by combining data from both robots (Binary)')
         plt.xlabel('X (m)')
         plt.ylabel('Y (m)')
         plt.grid(True)

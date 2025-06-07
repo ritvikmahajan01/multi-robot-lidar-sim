@@ -103,14 +103,14 @@ def plot_robot_trajectories_and_map(data: Dict) -> None:
             ax.plot(x_coords[-1], y_coords[-1], 's', color=color, label=f'{robot_id} end')
     
     # Customize plots
-    ax1.set_title('Colored Occupancy Grid Map\n(by Robot)')
+    ax1.set_title('Lidar Readings\n(by Robot)')
     ax1.set_xlabel('X (m)')
     ax1.set_ylabel('Y (m)')
     ax1.grid(True)
     ax1.legend()
     ax1.axis('equal')
     
-    ax2.set_title('Binary Occupancy Grid Map')
+    ax2.set_title('Lidar Readings')
     ax2.set_xlabel('X (m)')
     ax2.set_ylabel('Y (m)')
     ax2.grid(True)
@@ -119,7 +119,7 @@ def plot_robot_trajectories_and_map(data: Dict) -> None:
     
     plt.tight_layout()
     plt.show()
-
+    # plt.savefig('robot_data.pdf')
 def main():
     # Load the data
     data = load_robot_data('robot_data.npy')
