@@ -10,6 +10,8 @@ class RobotOccupancyGrid:
         self.grid = None
         self.bounds = None  # (min_x, max_x, min_y, max_y)
         self.log_odds = None  # For probabilistic updates
+        self.occupied_threshold = 0.9
+        self.free_threshold = 0.1
         
     def initialize_grid(self, data: Dict) -> None:
         """Initialize grid dimensions based on robot trajectories."""
@@ -118,14 +120,19 @@ class RobotOccupancyGrid:
                 y += sy
     
     def get_occupancy_grid(self) -> np.ndarray:
-        """Get the binary occupancy grid."""
+        """Get the ternary occupancy grid (0=free, 1=occupied, 0.5=unknown) using sigmoid function."""
         if self.log_odds is None:
             raise ValueError("Grid not initialized")
             
-        # Convert log-odds to probability
-        prob = 1 - 1 / (1 + np.exp(self.log_odds))
-        # Convert to binary grid
-        return (prob > 0.5).astype(np.float32)
+        # Convert log odds to probabilities using sigmoid function
+        probabilities = 1 / (1 + np.exp(-self.log_odds))
+        
+        # Create ternary grid based on probability thresholds
+        grid = np.zeros_like(self.log_odds)
+        grid[probabilities > self.occupied_threshold] = 1.0  # Occupied
+        grid[probabilities < self.free_threshold] = 0.0  # Free
+        grid[(probabilities >= self.free_threshold) & (probabilities <= self.occupied_threshold)] = 0.5  # Unknown
+        return grid
     
     def get_bounds(self) -> Tuple[float, float, float, float]:
         """Get the world coordinate bounds of the grid."""
@@ -204,15 +211,27 @@ class RobotOccupancyGrid:
 
         if show_probability:
             # Show probability map
-            prob = 1 - 1 / (1 + np.exp(self.log_odds))
+            prob = 1 / (1 + np.exp(-self.log_odds))
             plt.imshow(prob, origin='lower', extent=self.bounds,
                       cmap='RdYlBu_r', vmin=0, vmax=1)
             plt.colorbar(label='Occupancy Probability')
         else:
-            # Show binary occupancy grid
+            # Get ternary occupancy grid
             occupancy = self.get_occupancy_grid()
+            
+            # Show ternary occupancy map with custom colormap
+            cmap = plt.cm.get_cmap('RdYlBu_r', 3)
             plt.imshow(occupancy, origin='lower', extent=self.bounds,
-                      cmap='binary', vmin=0, vmax=1)
+                      cmap=cmap, vmin=0, vmax=1)
+            
+            # Add legend for occupancy
+            from matplotlib.patches import Patch
+            legend_elements = [
+                Patch(facecolor='red', label='Occupied Space'),
+                Patch(facecolor='yellow', label='Unknown Space'),
+                Patch(facecolor='blue', label='Free Space')
+            ]
+            plt.legend(handles=legend_elements, loc='upper right')
         
         # Plot robot trajectory if data is provided
         if data is not None and robot_id is not None:
@@ -240,9 +259,9 @@ def combine_maps(grid1: RobotOccupancyGrid, grid2: RobotOccupancyGrid, data: Dic
     region1 = grid1.get_observation_region('robot1', data)
     region2 = grid2.get_observation_region('robot2', data)
     
-    # Get probability maps
-    prob1 = 1 - 1 / (1 + np.exp(grid1.log_odds))
-    prob2 = 1 - 1 / (1 + np.exp(grid2.log_odds))
+    # Get probability maps using sigmoid function
+    prob1 = 1 / (1 + np.exp(-grid1.log_odds))
+    prob2 = 1 / (1 + np.exp(-grid2.log_odds))
     
     # Initialize combined map
     combined_map = np.ones_like(prob1) * 0.5
@@ -324,9 +343,25 @@ def visualize_all_maps(grid1: RobotOccupancyGrid, grid2: RobotOccupancyGrid, dat
 
     # 6. Combined binary map
     plt.figure(figsize=(12, 10))
-    binary_map = (combined_map > 0.5).astype(np.float32)
-    plt.imshow(binary_map, origin='lower', extent=grid1.bounds,
-              cmap='binary', vmin=0, vmax=1)
+    # Create ternary grid based on probability thresholds
+    ternary_map = np.zeros_like(combined_map)
+    ternary_map[combined_map > 0.65] = 1.0  # Occupied
+    ternary_map[combined_map < 0.35] = 0.0  # Free
+    ternary_map[(combined_map >= 0.35) & (combined_map <= 0.65)] = 0.5  # Unknown
+    
+    # Show ternary occupancy map with custom colormap
+    cmap = plt.cm.get_cmap('RdYlBu_r', 3)
+    plt.imshow(ternary_map, origin='lower', extent=grid1.bounds,
+              cmap=cmap, vmin=0, vmax=1)
+    
+    # Add legend for occupancy
+    from matplotlib.patches import Patch
+    legend_elements = [
+        Patch(facecolor='red', label='Occupied Space'),
+        Patch(facecolor='yellow', label='Unknown Space'),
+        Patch(facecolor='blue', label='Free Space')
+    ]
+    plt.legend(handles=legend_elements, loc='upper right')
     
     # Plot both robot trajectories
     for robot_id in ['robot1', 'robot2']:
@@ -341,7 +376,7 @@ def visualize_all_maps(grid1: RobotOccupancyGrid, grid2: RobotOccupancyGrid, dat
         plt.plot(x_coords[-1], y_coords[-1], 's', label=f'{robot_id} end',
                 color=color)
     
-    plt.title('Combined Occupancy Grid Map (Binary) using weighted average of individual probability maps')
+    plt.title('Combined Occupancy Grid Map (Ternary) using weighted average of individual probability maps')
     plt.xlabel('X (m)')
     plt.ylabel('Y (m)')
     plt.grid(True)

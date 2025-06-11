@@ -11,6 +11,9 @@ class OccupancyGrid:
         self.bounds = None  # (min_x, max_x, min_y, max_y)
         self.log_odds = None  # For probabilistic updates
         self.robot_detections = None  # Track which robot detected each cell
+
+        self.occupied_threshold = 0.9
+        self.free_threshold = 0.1
         
     def initialize_grid(self, data: Dict) -> None:
         """Initialize grid dimensions based on robot trajectories."""
@@ -41,6 +44,8 @@ class OccupancyGrid:
         # Initialize robot detections: 0=unknown, 1=robot1, 2=robot2, 3=both
         self.robot_detections = np.zeros((grid_height, grid_width), dtype=np.uint8)
         self.bounds = (min_x, max_x, min_y, max_y)
+
+        # print("Grid dimensions: ", grid_width, grid_height)
     
     def world_to_grid(self, x: float, y: float) -> Tuple[int, int]:
         """Convert world coordinates to grid coordinates."""
@@ -135,14 +140,19 @@ class OccupancyGrid:
                 y += sy
     
     def get_occupancy_grid(self) -> np.ndarray:
-        """Get the binary occupancy grid."""
+        """Get the ternary occupancy grid (0=free, 1=occupied, 0.5=unknown) using sigmoid function."""
         if self.log_odds is None:
             raise ValueError("Grid not initialized")
             
-        # Convert log-odds to probability
-        prob = 1 - 1 / (1 + np.exp(self.log_odds))
-        # Convert to binary grid
-        return (prob > 0.5).astype(np.float32)
+        # Convert log odds to probabilities using sigmoid function
+        probabilities = 1 / (1 + np.exp(-self.log_odds))
+        
+        # Create ternary grid based on probability thresholds
+        grid = np.zeros_like(self.log_odds)
+        grid[probabilities > self.occupied_threshold] = 1.0  # Occupied
+        grid[probabilities < self.free_threshold] = 0.0  # Free
+        grid[(probabilities >= self.free_threshold) & (probabilities <= self.occupied_threshold)] = 0.5  # Unknown
+        return grid
     
     def get_bounds(self) -> Tuple[float, float, float, float]:
         """Get the world coordinate bounds of the grid."""
@@ -160,23 +170,25 @@ class OccupancyGrid:
         
         if show_probability:
             # Show probability map
-            prob = 1 - 1 / (1 + np.exp(self.log_odds))
+            prob = 1 / (1 + np.exp(-self.log_odds))
             plt.imshow(prob, origin='lower', extent=self.bounds,
                       cmap='RdYlBu_r', vmin=0, vmax=1)
             plt.colorbar(label='Occupancy Probability')
         else:
-            # Get binary occupancy grid
+            # Get ternary occupancy grid
             occupancy = self.get_occupancy_grid()
             
-            # Show black and white occupancy map
+            # Show ternary occupancy map with custom colormap
+            cmap = plt.cm.get_cmap('RdYlBu_r', 3)
             plt.imshow(occupancy, origin='lower', extent=self.bounds,
-                      cmap='binary', vmin=0, vmax=1)
+                      cmap=cmap, vmin=0, vmax=1)
             
             # Add legend for occupancy
             from matplotlib.patches import Patch
             legend_elements = [
-                Patch(facecolor='black', label='Occupied Space'),
-                Patch(facecolor='white', label='Free Space')
+                Patch(facecolor='red', label='Occupied Space'),
+                Patch(facecolor='yellow', label='Unknown Space'),
+                Patch(facecolor='blue', label='Free Space')
             ]
             plt.legend(handles=legend_elements, loc='upper right')
         
