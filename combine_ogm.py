@@ -2,6 +2,10 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 from typing import Dict, List, Tuple, Optional
+import time
+import os
+import csv
+from datetime import datetime
 
 class RobotOccupancyGrid:
     def __init__(self, resolution: float = 0.05):
@@ -12,6 +16,8 @@ class RobotOccupancyGrid:
         self.log_odds = None  # For probabilistic updates
         self.occupied_threshold = 0.9
         self.free_threshold = 0.1
+        self.robot_detections = None  # Track which robot detected each cell
+        self.free_points_sampled = 0  # Counter for free points sampled
         
     def initialize_grid(self, data: Dict) -> None:
         """Initialize grid dimensions based on robot trajectories."""
@@ -40,6 +46,7 @@ class RobotOccupancyGrid:
         self.grid = np.zeros((grid_height, grid_width))
         self.log_odds = np.zeros((grid_height, grid_width))
         self.bounds = (min_x, max_x, min_y, max_y)
+        self.robot_detections = np.zeros_like(self.grid, dtype=int)  # Initialize robot_detections
     
     def world_to_grid(self, x: float, y: float) -> Tuple[int, int]:
         """Convert world coordinates to grid coordinates."""
@@ -62,12 +69,13 @@ class RobotOccupancyGrid:
         return x, y
     
     def update_from_lidar(self, pose: Tuple[float, float, float], 
-                         lidar_readings: List[Tuple[float, float]]) -> None:
+                         lidar_readings: List[Tuple[float, float]], robot_id: str) -> None:
         """Update grid using LiDAR readings."""
         if self.grid is None:
             raise ValueError("Grid not initialized")
             
         robot_x, robot_y, robot_theta = pose
+        robot_num = 1 if robot_id == 'robot1' else 2
         
         # Constants for log-odds update
         l_occ = 0.7  # Log-odds for occupied cells
@@ -88,18 +96,29 @@ class RobotOccupancyGrid:
             
             # Update occupied cell
             if 0 <= end_grid_x < self.grid.shape[1] and 0 <= end_grid_y < self.grid.shape[0]:
-                self.log_odds[end_grid_y, end_grid_x] += l_occ
+                # Update log-odds with bounds to prevent overflow
+                self.log_odds[end_grid_y, end_grid_x] = np.clip(
+                    self.log_odds[end_grid_y, end_grid_x] + l_occ,
+                    -100, 100  # Clip log-odds to prevent overflow
+                )
+                # Update robot detection
+                current_detection = self.robot_detections[end_grid_y, end_grid_x]
+                if current_detection == 0:
+                    self.robot_detections[end_grid_y, end_grid_x] = robot_num
+                elif current_detection != robot_num:
+                    self.robot_detections[end_grid_y, end_grid_x] = 3  # Both robots
             
             # Update free cells along the ray
-            self._update_ray(robot_x, robot_y, end_x, end_y, l_free)
+            self._update_ray(robot_x, robot_y, end_x, end_y, l_free, robot_num)
     
     def _update_ray(self, start_x: float, start_y: float, 
-                   end_x: float, end_y: float, l_free: float) -> None:
-        """Update cells along a ray using Bresenham's line algorithm."""
+                   end_x: float, end_y: float, l_free: float, robot_num: int) -> None:
+        """Update cells along a ray from start to end point."""
+        # Get grid coordinates
         start_grid_x, start_grid_y = self.world_to_grid(start_x, start_y)
         end_grid_x, end_grid_y = self.world_to_grid(end_x, end_y)
         
-        # Bresenham's line algorithm
+        # Use Bresenham's line algorithm to get cells along the ray
         dx = abs(end_grid_x - start_grid_x)
         dy = abs(end_grid_y - start_grid_y)
         sx = 1 if start_grid_x < end_grid_x else -1
@@ -109,7 +128,18 @@ class RobotOccupancyGrid:
         x, y = start_grid_x, start_grid_y
         while x != end_grid_x or y != end_grid_y:
             if 0 <= x < self.grid.shape[1] and 0 <= y < self.grid.shape[0]:
-                self.log_odds[y, x] += l_free
+                # Update log-odds with bounds to prevent overflow
+                self.log_odds[y, x] = np.clip(
+                    self.log_odds[y, x] + l_free,
+                    -100, 100  # Clip log-odds to prevent overflow
+                )
+                # Update robot detection
+                current_detection = self.robot_detections[y, x]
+                if current_detection == 0:
+                    self.robot_detections[y, x] = robot_num
+                elif current_detection != robot_num:
+                    self.robot_detections[y, x] = 3  # Both robots
+                self.free_points_sampled += 1  # Increment counter for each free point
             
             e2 = 2 * err
             if e2 > -dy:
@@ -287,7 +317,7 @@ def combine_maps(grid1: RobotOccupancyGrid, grid2: RobotOccupancyGrid, data: Dic
     
     return combined_map
 
-def visualize_all_maps(grid1: RobotOccupancyGrid, grid2: RobotOccupancyGrid, data: Dict) -> None:
+def visualize_all_maps(grid1: RobotOccupancyGrid, grid2: RobotOccupancyGrid, combined_map: np.ndarray, data: Dict) -> None:
     """Visualize all maps separately."""
     # 1. Robot 1's probability map
     plt.figure(figsize=(12, 10))
@@ -315,7 +345,6 @@ def visualize_all_maps(grid1: RobotOccupancyGrid, grid2: RobotOccupancyGrid, dat
 
     # 5. Combined probability map
     plt.figure(figsize=(12, 10))
-    combined_map = combine_maps(grid1, grid2, data)
     plt.imshow(combined_map, origin='lower', extent=grid1.bounds,
               cmap='RdYlBu_r', vmin=0, vmax=1)
     plt.colorbar(label='Occupancy Probability')
@@ -399,43 +428,88 @@ def main():
     # Load data
     data = np.load('robot_data.npy', allow_pickle=True).item()
     
-    # Create separate occupancy grids for each robot
+    # Count number of LiDAR readings in dataset
+    robot1_readings = sum(len(readings) for readings in data['robot1']['lidar_readings'])
+    robot2_readings = sum(len(readings) for readings in data['robot2']['lidar_readings'])
+    total_readings = robot1_readings + robot2_readings
+    
+    # Create and update occupancy grid for robot 1
+    start_time1 = time.time()
     grid1 = RobotOccupancyGrid(resolution=0.05)
-    grid2 = RobotOccupancyGrid(resolution=0.05)
-    
-    # Initialize grids
     grid1.initialize_grid(data)
-    grid2.initialize_grid(data)
-    
-    # Update grid1 with robot1's LiDAR readings
     poses1 = data['robot1']['poses']
     lidar_readings1 = data['robot1']['lidar_readings']
     for pose, readings in zip(poses1, lidar_readings1):
-        grid1.update_from_lidar(pose, readings)
+        grid1.update_from_lidar(pose, readings, 'robot1')
+    occupancy1 = grid1.get_occupancy_grid()
+    end_time1 = time.time()
     
-    # Update grid2 with robot2's LiDAR readings
+    # Create and update occupancy grid for robot 2
+    start_time2 = time.time()
+    grid2 = RobotOccupancyGrid(resolution=0.05)
+    grid2.initialize_grid(data)
     poses2 = data['robot2']['poses']
     lidar_readings2 = data['robot2']['lidar_readings']
     for pose, readings in zip(poses2, lidar_readings2):
-        grid2.update_from_lidar(pose, readings)
-    
-    # Get occupancy grids
-    occupancy1 = grid1.get_occupancy_grid()
+        grid2.update_from_lidar(pose, readings, 'robot2')
     occupancy2 = grid2.get_occupancy_grid()
+    end_time2 = time.time()
     
-    # Count points for each robot
-    for grid, robot_id in [(grid1, 'robot1'), (grid2, 'robot2')]:
-        occupancy = grid.get_occupancy_grid()
-        occupied_points = np.sum(occupancy == 1)
-        free_points = np.sum(occupancy == 0)
-        
-        print(f"\n{robot_id} statistics:")
-        print(f"Occupied points: {occupied_points}")
-        print(f"Free points: {free_points}")
-        print(f"Total points: {occupied_points + free_points}")
+    # Combine maps
+    start_time_combined = time.time()
+    combined_map = combine_maps(grid1, grid2, data)
+    end_time_combined = time.time()
     
-    # Visualize all maps in parallel
-    visualize_all_maps(grid1, grid2, data)
+    # Calculate total readings (LiDAR + free points)
+    robot1_total = robot1_readings + grid1.free_points_sampled
+    robot2_total = robot2_readings + grid2.free_points_sampled
+    total_points = robot1_total + robot2_total
+    
+    # Save timing and point count information to CSV
+    # Get current timestamp
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Prepare data for CSV
+    csv_data = {
+        'timestamp': timestamp,
+        'robot1_time': end_time1 - start_time1,
+        'robot2_time': end_time2 - start_time2,
+        'combined_time': end_time_combined - start_time_combined,
+        'robot1_readings': robot1_readings,
+        'robot2_readings': robot2_readings,
+        'total_readings': total_readings,
+        'robot1_total_points': robot1_total,
+        'robot2_total_points': robot2_total,
+        'total_points': total_points
+    }
+    
+    # Write to CSV file
+    csv_file = 'data/times_combine_ogm.csv'
+    file_exists = os.path.isfile(csv_file)
+    
+    with open(csv_file, mode='a', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=csv_data.keys())
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(csv_data)
+    
+    # Print timing information
+    print(f"\nRobot 1 processing time: {end_time1 - start_time1:.2f} seconds")
+    print(f"Robot 2 processing time: {end_time2 - start_time2:.2f} seconds")
+    print(f"Combined map processing time: {end_time_combined - start_time_combined:.2f} seconds")
+    
+    # Print reading counts
+    print(f"\nRobot 1 LiDAR readings: {robot1_readings}")
+    print(f"Robot 2 LiDAR readings: {robot2_readings}")
+    print(f"Total LiDAR readings: {total_readings}")
+    
+    # Print total points (LiDAR + free)
+    print(f"\nRobot 1 total points (LiDAR + free): {robot1_total}")
+    print(f"Robot 2 total points (LiDAR + free): {robot2_total}")
+    print(f"Total points (LiDAR + free): {total_points}")
+    
+    # Visualize the maps
+    # visualize_all_maps(grid1, grid2, combined_map, data)
 
 if __name__ == "__main__":
     main()

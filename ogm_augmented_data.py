@@ -2,6 +2,7 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 from typing import Dict, List, Tuple, Optional
+import time
 
 class OccupancyGrid:
     def __init__(self, resolution: float = 0.05):
@@ -146,7 +147,7 @@ class OccupancyGrid:
             
         # Convert log odds to probabilities using sigmoid function
         probabilities = 1 / (1 + np.exp(-self.log_odds))
-        
+        # print(max(self.log_odds))
         # Create ternary grid based on probability thresholds
         grid = np.zeros_like(self.log_odds)
         grid[probabilities > self.occupied_threshold] = 1.0  # Occupied
@@ -219,7 +220,9 @@ class OccupancyGrid:
 def main():
     """Example usage of the OccupancyGrid class."""
     # Load data
+
     data = np.load('robot_data.npy', allow_pickle=True).item()
+    start_time = time.time()
     
     # Create and update occupancy grid
     grid = OccupancyGrid(resolution=0.05)
@@ -234,6 +237,9 @@ def main():
     
     # Get occupancy grid and robot detections
     occupancy = grid.get_occupancy_grid()
+
+    end_time = time.time()
+    print(f"Time taken: {end_time - start_time} seconds")
     robot_detections = grid.robot_detections
     
     # Count points for each robot

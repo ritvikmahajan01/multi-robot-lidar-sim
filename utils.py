@@ -18,7 +18,7 @@ ROBOT_CONFIG = {
     'radius': 0.1,  # Increased robot size for better visibility
     'sensor_noise': {
         'range_std': 0.01,  # Disabled range noise
-        'angle_std': 0.0,  # Disabled angle noise
+        'angle_std': 0.1,  # Disabled angle noise
         'dropout_prob': 0.0,  # Disabled dropouts
         'min_range': 0.1,
         'max_range': 5.0

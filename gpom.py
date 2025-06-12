@@ -10,15 +10,13 @@ def load_robot_data(filename: str) -> Dict:
     return data
 
 def sample_free_points(robot_pose: Tuple[float, float, float], 
-                      lidar_readings: List[Tuple[float, float]], 
-                      num_points: int = 5) -> List[Tuple[float, float]]:
+                      lidar_readings: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
     """
-    Sample free points along LiDAR beams.
+    Sample all free points along LiDAR beams using Bresenham's line algorithm.
     
     Args:
         robot_pose: (x, y, theta) tuple of robot position and orientation
         lidar_readings: List of (range, bearing) tuples from LiDAR
-        num_points: Number of points to sample along each beam
         
     Returns:
         List of (x, y) coordinates of free points
@@ -36,12 +34,34 @@ def sample_free_points(robot_pose: Tuple[float, float, float],
         end_x = robot_x + range_val * math.cos(robot_theta + bearing_rad)
         end_y = robot_y + range_val * math.sin(robot_theta + bearing_rad)
         
-        # Sample points along the ray
-        for i in range(num_points):
-            t = (i + 1) / (num_points + 1)  # Skip the robot position (t=0)
-            x = robot_x + t * (end_x - robot_x)
-            y = robot_y + t * (end_y - robot_y)
-            free_points.append((x, y))
+        # Convert to grid coordinates (using a fine grid for sampling)
+        resolution = 0.05  # 5cm resolution
+        start_grid_x = int(robot_x / resolution)
+        start_grid_y = int(robot_y / resolution)
+        end_grid_x = int(end_x / resolution)
+        end_grid_y = int(end_y / resolution)
+        
+        # Bresenham's line algorithm
+        dx = abs(end_grid_x - start_grid_x)
+        dy = abs(end_grid_y - start_grid_y)
+        sx = 1 if start_grid_x < end_grid_x else -1
+        sy = 1 if start_grid_y < end_grid_y else -1
+        err = dx - dy
+        
+        x, y = start_grid_x, start_grid_y
+        while x != end_grid_x or y != end_grid_y:
+            # Convert back to world coordinates
+            world_x = (x + 0.5) * resolution
+            world_y = (y + 0.5) * resolution
+            free_points.append((world_x, world_y))
+            
+            e2 = 2 * err
+            if e2 > -dy:
+                err -= dy
+                x += sx
+            if e2 < dx:
+                err += dx
+                y += sy
             
     return free_points
 
@@ -113,18 +133,18 @@ def visualize_point_dataset(free_points: np.ndarray,
     robot2_free_mask = free_robot_ids == 2
     
     plt.scatter(free_points[robot1_free_mask, 0], free_points[robot1_free_mask, 1],
-               c='pink', alpha=0.3, label='Robot 1 Free Space')
+               c='pink', alpha=0.3, s=0.1, label='Robot 1 Free Space')
     plt.scatter(free_points[robot2_free_mask, 0], free_points[robot2_free_mask, 1],
-               c='lightblue', alpha=0.3, label='Robot 2 Free Space')
+               c='lightblue', alpha=0.3, s=0.1, label='Robot 2 Free Space')
     
     # Plot occupied points with different colors for each robot
     robot1_occ_mask = occupied_robot_ids == 1
     robot2_occ_mask = occupied_robot_ids == 2
     
     plt.scatter(occupied_points[robot1_occ_mask, 0], occupied_points[robot1_occ_mask, 1],
-               c='red', alpha=0.7, label='Robot 1 Detections')
+               c='red', alpha=0.7, s=0.1, label='Robot 1 Detections')
     plt.scatter(occupied_points[robot2_occ_mask, 0], occupied_points[robot2_occ_mask, 1],
-               c='blue', alpha=0.7, label='Robot 2 Detections')
+               c='blue', alpha=0.7, s=0.1, label='Robot 2 Detections')
     
     # Plot robot trajectories
     robot1_poses = np.array(data['robot1']['poses'])
