@@ -1,0 +1,15 @@
+temp_num_of_points = 10000
+training_iter = 500  # Increased from 100 to 500
+patience = 50  # Number of iterations to wait for improvement
+best_loss = float('inf')
+no_improve_count = 0
+
+gp.kernels.MaternKernel(nu=1.5)
+lr=0.01
+
+resolution = 0.05
+x = np.arange(x_min, x_max, resolution)
+y = np.arange(y_min, y_max, resolution)
+
+occupied_mask = prob_occupied > 0.65
+free_mask = prob_occupied < 0.35

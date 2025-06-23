@@ -1,0 +1,42 @@
+
+## TIMES_COMBINE_OGM (COMBINE_OGM_WEIGHTED) ##
+SIMULATION_CONFIG = {
+    'fps': 60,
+    'dt': 1/60,
+}
+
+ROBOT_CONFIG = {
+    'max_velocity': 2.0,
+    'max_angular_velocity': 2.0,
+    'lidar_range': 3.0,
+    'lidar_angle_range': 180,
+    'lidar_resolution': 2, 
+    'radius': 0.1,  # Increased robot size for better visibility
+    'sensor_noise': {
+        'range_std': 0.01,  # Disabled range noise
+        'angle_std': 0.1,  # Disabled angle noise
+        'dropout_prob': 0.0,  # Disabled dropouts
+        'min_range': 0.1,
+        'max_range': 5.0
+    },
+    'motion_noise': {
+        'velocity_std': 0.0,  # Disabled velocity noise
+        'angular_std': 0.0,  # Disabled angular noise
+        'slip_prob': 0.0  # Disabled wheel slip
+    }
+}
+
+ENVIRONMENT_CONFIG = {
+    'width': 1200,  # Reduced width
+    'height': 800,  # Reduced height
+    'colors': {
+        'robot1': (255, 0, 0),    # Red
+        'robot2': (0, 0, 255),    # Blue
+        'robot3': (0, 255, 0),    # Green
+        'robot4': (255, 165, 0)   # Orange
+    }
+}
+        l_occ = 0.7  # Log-odds for occupied cells
+        l_free = -0.4  # Log-odds for free cells
+        resolution = 0.05
+        Bresenham's line algorithm

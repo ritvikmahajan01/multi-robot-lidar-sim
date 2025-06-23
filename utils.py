@@ -17,15 +17,15 @@ ROBOT_CONFIG = {
     'lidar_resolution': 2, 
     'radius': 0.1,  # Increased robot size for better visibility
     'sensor_noise': {
-        'range_std': 0.01,  # Disabled range noise
-        'angle_std': 0.1,  # Disabled angle noise
+        'range_std': 0.1,  # Disabled range noise
+        'angle_std': 0.5,  # Disabled angle noise
         'dropout_prob': 0.0,  # Disabled dropouts
         'min_range': 0.1,
         'max_range': 5.0
     },
     'motion_noise': {
-        'velocity_std': 0.0,  # Disabled velocity noise
-        'angular_std': 0.0,  # Disabled angular noise
+        'velocity_std': 0.01,  # Disabled velocity noise
+        'angular_std': 0.05,  # Disabled angular noise
         'slip_prob': 0.0  # Disabled wheel slip
     }
 }
@@ -127,7 +127,7 @@ class LidarRobot:
             if np.random.random() < self.sensor_noise.get('dropout_prob', 0):
                 readings.append(self.lidar_range)
                 uncertainties.append(float('inf'))
-            else:
+            elif min_distance < self.lidar_range:
                 noisy_distance = min_distance + np.random.normal(0, self.sensor_noise.get('range_std', 0))
                 noisy_distance = max(self.sensor_noise.get('min_range', 0.1),
                                    min(self.sensor_noise.get('max_range', 5.0), noisy_distance))
@@ -135,7 +135,13 @@ class LidarRobot:
                 uncertainty = (self.sensor_noise.get('range_std', 0) * 
                              (1 + min_distance / self.lidar_range))
                 uncertainties.append(uncertainty)
-        
+
+            # If no obstacle is detected, add the max range
+            else:
+                readings.append(self.lidar_range)
+                uncertainties.append(float(0))
+                
+
         self.lidar_readings = readings
         self.lidar_uncertainties = uncertainties
         return readings, uncertainties
@@ -194,12 +200,12 @@ class LidarRobot:
         return None
 
 class Environment:
-    def __init__(self, width: int, height: int, **config):
-        pygame.init()
+    def __init__(self, width: int, height: int, screen=None, **config):
         self.width = width
         self.height = height
-        self.screen = pygame.display.set_mode((width, height))
-        pygame.display.set_caption("Lidar Robot Simulation")
+        self.screen = screen if screen is not None else pygame.display.set_mode((width, height))
+        if screen is None:
+            pygame.display.set_caption("Lidar Robot Simulation")
         self.clock = pygame.time.Clock()
         self.walls = self._create_walls()
         self.show_uncertainty = config.get('show_uncertainty', True)

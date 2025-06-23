@@ -20,7 +20,7 @@ column_names = [
 df = pd.read_csv('data/times_combine_ogm.csv', names=column_names)
 
 # Plot 1: Time vs Total Points
-plt.figure(figsize=(10, 6))
+plt.figure()
 plt.scatter(df['robot1_total_points'], df['robot1_time'], label='Time taken for Robot 1 Occupancy Grid Mapping', alpha=0.6)
 plt.scatter(df['robot2_total_points'], df['robot2_time'], label='Time taken for Robot 2 Occupancy Grid Mapping', alpha=0.6)
 plt.scatter(df['total_points'], df['combined_time'], label='Time taken for merging the maps', alpha=0.6)
@@ -30,10 +30,9 @@ plt.ylabel('Time (seconds)')
 plt.title('Processing Time vs Total Points')
 plt.legend()
 plt.grid(True)
-plt.show()
 
 # Plot 2: Time vs LiDAR Readings
-plt.figure(figsize=(10, 6))
+plt.figure()
 plt.scatter(df['robot1_readings'], df['robot1_time'], label='Robot 1', alpha=0.6)
 plt.scatter(df['robot2_readings'], df['robot2_time'], label='Robot 2', alpha=0.6)
 plt.scatter(df['total_readings'], df['combined_time'], label='Merging the maps', alpha=0.6)
@@ -42,10 +41,9 @@ plt.ylabel('Time (seconds)')
 plt.title('Processing Time vs LiDAR Readings')
 plt.legend()
 plt.grid(True)
-plt.show()
 
 # Plot 3: Free Points vs LiDAR Points
-plt.figure(figsize=(10, 6))
+plt.figure()
 robot1_free = df['robot1_total_points'] - df['robot1_readings']
 robot2_free = df['robot2_total_points'] - df['robot2_readings']
 plt.scatter(df['robot1_readings'], robot1_free, label='Robot 1', alpha=0.6)
@@ -55,10 +53,9 @@ plt.ylabel('Free Points')
 plt.title('Free Points vs LiDAR Readings')
 plt.legend()
 plt.grid(True)
-plt.show()
 
 # Plot 4: Ratio of Free Points to LiDAR Readings
-plt.figure(figsize=(10, 6))
+plt.figure()
 ratio1 = robot1_free / df['robot1_readings']
 ratio2 = robot2_free / df['robot2_readings']
 plt.scatter(df['robot1_readings'], ratio1, label='Robot 1', alpha=0.6)
