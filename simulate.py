@@ -2,7 +2,7 @@ import pygame
 import math
 import numpy as np
 from typing import List, Tuple, Optional, Dict
-from utils import (
+from env_utils import (
     SIMULATION_CONFIG, ROBOT_CONFIG, ENVIRONMENT_CONFIG,
     LidarRobot, Environment, DataRecorder
 )
@@ -14,7 +14,6 @@ def main():
         width=ENVIRONMENT_CONFIG['width'],
         height=ENVIRONMENT_CONFIG['height']
     )
-    
     # Initialize data recorder
     data_recorder = DataRecorder('robot_data.npy')
     
@@ -25,7 +24,7 @@ def main():
         **ROBOT_CONFIG
     )
     robot2 = LidarRobot(
-        x=11.0, y=7.0, theta=math.pi,  # Clear area in top-right
+        x=29.0, y=19.0, theta=math.pi,  # Clear area in top-right
         color=ENVIRONMENT_CONFIG['colors']['robot2'],
         **ROBOT_CONFIG
     )
@@ -111,6 +110,7 @@ def main():
         frame_count += 1
         
         # Draw everything
+        # if frame_count % 10 == 0: 
         env.draw(robots)
         
         # Cap the frame rate

@@ -4,14 +4,13 @@ import math
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from typing import Dict, List, Tuple, Optional
-from utils import (
+from env_utils import (
     SIMULATION_CONFIG, ROBOT_CONFIG, ENVIRONMENT_CONFIG,
     LidarRobot, Environment, DataRecorder
 )
 from combine_ogm_weighted import RobotOccupancyGrid, combine_maps
 import time
-from multiprocessing import Process, Queue, Event
-import threading
+
 
 class RealtimeOccupancyGrid(RobotOccupancyGrid):
     def __init__(self, resolution: float = 0.05):
@@ -155,16 +154,16 @@ class RealtimeMappingSimulation:
         
         # Initialize robots with positions for 12x8 map
         self.robot1 = LidarRobot(
-            x=2.0,  # Start near left side
-            y=4.0,  # Start in middle vertically
+            x=40.0,  # Start near left side
+            y=200.0,  # Start in middle vertically
             theta=0,
             color=ENVIRONMENT_CONFIG['colors']['robot1'],
             **ROBOT_CONFIG
         )
         
         self.robot2 = LidarRobot(
-            x=10.0,  # Start near right side
-            y=4.0,   # Start in middle vertically
+            x=560.0,  # Start near right side
+            y=200.0,   # Start in middle vertically
             theta=np.pi,
             color=ENVIRONMENT_CONFIG['colors']['robot2'],
             **ROBOT_CONFIG

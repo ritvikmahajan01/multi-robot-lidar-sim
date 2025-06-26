@@ -3,9 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from datetime import datetime
 import os
-from utils import Environment, ROBOT_CONFIG, LidarRobot
-from combine_ogm_weighted import RobotOccupancyGrid, combine_maps
-from evaluate_maps import create_ground_truth_grid, evaluate_map
+from mapping_utils import RobotOccupancyGrid, combine_grid_maps, create_ground_truth_grid, evaluate_map
 
 def add_noise_to_readings(readings, range_std=0.0, angle_std=0.0):
     """Add noise to LiDAR readings."""
@@ -85,14 +83,14 @@ def evaluate_map_quality(data: dict, noise_params: dict) -> dict:
         grid2.update_from_lidar(pose, readings, 'robot2')
     
     # Create ground truth grid
-    ground_truth = create_ground_truth_grid(grid1)
+    ground_truth = create_ground_truth_grid(grid1, wall_thickness=1.0, resolution=0.05)
     
     # Get observation regions
     region1 = grid1.get_observation_region('robot1', data)
     region2 = grid2.get_observation_region('robot2', data)
     
     # Combine maps
-    combined_map = combine_maps(grid1, grid2, data)
+    combined_map = combine_grid_maps(grid1, grid2, data)
     
     # Evaluate each map
     metrics1 = evaluate_map(grid1.get_occupancy_grid(), ground_truth, region1)
@@ -114,8 +112,8 @@ def analyze_noise_parameters():
     noise_ranges = {
         'range_std': np.linspace(0, 0.5, 11),    # 0 to 0.5 meters
         'angle_std': np.linspace(0, 0.1, 11),    # 0 to 0.1 radians
-        'velocity_std': np.linspace(0, 0.2, 11), # 0 to 0.2 m/s
-        'angular_std': np.linspace(0, 0.2, 11)   # 0 to 0.2 rad/s
+        'velocity_std':  [0.0], #np.linspace(0, 0.2, 11), # 0 to 0.2 m/s
+        'angular_std': [0.0] #np.linspace(0, 0.2, 11)   # 0 to 0.2 rad/s
     }
     
     # Initialize results list
@@ -147,22 +145,30 @@ def analyze_noise_parameters():
                 'robot1_false_positives': metrics['robot1']['false_positives'] * 100,
                 'robot1_unknown_percentage': metrics['robot1']['unknown_percentage'] * 100,
                 'robot1_observed_area': metrics['robot1']['observed_area_percentage'] * 100,
+                'robot1_roc_auc': metrics['robot1']['roc_auc'],
+                'robot1_nll': metrics['robot1']['nll'],
                 'robot2_accuracy': metrics['robot2']['accuracy'] * 100,
                 'robot2_false_negatives': metrics['robot2']['false_negatives'] * 100,
                 'robot2_false_positives': metrics['robot2']['false_positives'] * 100,
                 'robot2_unknown_percentage': metrics['robot2']['unknown_percentage'] * 100,
                 'robot2_observed_area': metrics['robot2']['observed_area_percentage'] * 100,
+                'robot2_roc_auc': metrics['robot2']['roc_auc'],
+                'robot2_nll': metrics['robot2']['nll'],
                 'combined_accuracy': metrics['combined']['accuracy'] * 100,
                 'combined_false_negatives': metrics['combined']['false_negatives'] * 100,
                 'combined_false_positives': metrics['combined']['false_positives'] * 100,
                 'combined_unknown_percentage': metrics['combined']['unknown_percentage'] * 100,
                 'combined_observed_area': metrics['combined']['observed_area_percentage'] * 100,
+                'combined_roc_auc': metrics['combined']['roc_auc'],
+                'combined_nll': metrics['combined']['nll'],
             }
             results.append(result)
             
             # Print progress
             print(f"  {noise_type} = {noise_value:.3f}: "
-                  f"Combined Accuracy = {metrics['combined']['accuracy'] * 100:.2f}%")
+                  f"Combined ROC AUC = {metrics['combined']['roc_auc']:.2f} "
+                  f"Combined NLL = {metrics['combined']['nll']:.2f}, "
+                  f"Combined Unknown Percentage = {metrics['combined']['unknown_percentage'] * 100:.2f}%")
     
     # Convert results to DataFrame
     df = pd.DataFrame(results)
@@ -240,16 +246,16 @@ def plot_results(df):
     plt.grid(True)
 
     # Plot robot and combined accuracy vs angle std
-    plt.figure()
-    angle_data = df[df['noise_type'] == 'angle_std']
-    plt.plot(angle_data['noise_value'], angle_data['robot1_accuracy'], label='Robot 1 OGM Accuracy', marker='o')
-    plt.plot(angle_data['noise_value'], angle_data['robot2_accuracy'], label='Robot 2 OGMAccuracy', marker='o')
-    plt.plot(angle_data['noise_value'], angle_data['combined_accuracy'], label='Merged OGM Accuracy', marker='o')
-    plt.title('Accuracy vs Angle Noise')
-    plt.xlabel('Angle Standard Deviation')
-    plt.ylabel('Accuracy (%)')
-    plt.legend()
-    plt.grid(True)
+    # plt.figure()
+    # angle_data = df[df['noise_type'] == 'angle_std']
+    # plt.plot(angle_data['noise_value'], angle_data['robot1_accuracy'], label='Robot 1 OGM Accuracy', marker='o')
+    # plt.plot(angle_data['noise_value'], angle_data['robot2_accuracy'], label='Robot 2 OGMAccuracy', marker='o')
+    # plt.plot(angle_data['noise_value'], angle_data['combined_accuracy'], label='Merged OGM Accuracy', marker='o')
+    # plt.title('Accuracy vs Angle Noise')
+    # plt.xlabel('Angle Standard Deviation')
+    # plt.ylabel('Accuracy (%)')
+    # plt.legend()
+    # plt.grid(True)
 
     # Plot robot and combined false negatives vs range std
     plt.figure()
@@ -273,27 +279,45 @@ def plot_results(df):
     plt.legend()
     plt.grid(True)
 
-    # Plot robot and combined false negatives vs angle std
+    # Plot robot and combined ROC AUC vs range std
     plt.figure()
-    plt.plot(angle_data['noise_value'], angle_data['robot1_false_negatives'], label='Robot 1 False Negatives', marker='o')
-    plt.plot(angle_data['noise_value'], angle_data['robot2_false_negatives'], label='Robot 2 False Negatives', marker='o')
-    plt.plot(angle_data['noise_value'], angle_data['combined_false_negatives'], label='Combined False Negatives', marker='o')
-    plt.title('False Negatives vs Angle Noise')
-    plt.xlabel('Angle Standard Deviation')
-    plt.ylabel('False Negatives (%)')
+    plt.plot(range_data['noise_value'], range_data['robot1_roc_auc'], label='Robot 1 ROC AUC', marker='o')
+    plt.plot(range_data['noise_value'], range_data['robot2_roc_auc'], label='Robot 2 ROC AUC', marker='o')
+    plt.plot(range_data['noise_value'], range_data['combined_roc_auc'], label='Merged ROC AUC', marker='o')
+    plt.title('ROC AUC vs Range Noise')
+    plt.ylabel('ROC AUC')
     plt.legend()
-    plt.grid(True)
+    plt.xlabel('Range Standard Deviation')
+
+    # Plot robot and combined NLL vs range std
+    plt.figure()
+    plt.plot(range_data['noise_value'], range_data['robot1_nll'], label='Robot 1 NLL', marker='o')
+    plt.plot(range_data['noise_value'], range_data['robot2_nll'], label='Robot 2 NLL', marker='o')
+    plt.plot(range_data['noise_value'], range_data['combined_nll'], label='Merged NLL', marker='o')
+    plt.title('NLL vs Range Noise')
+    plt.xlabel('Range Standard Deviation')
+
+    # Plot robot and combined false negatives vs angle std
+    # plt.figure()
+    # plt.plot(angle_data['noise_value'], angle_data['robot1_false_negatives'], label='Robot 1 False Negatives', marker='o')
+    # plt.plot(angle_data['noise_value'], angle_data['robot2_false_negatives'], label='Robot 2 False Negatives', marker='o')
+    # plt.plot(angle_data['noise_value'], angle_data['combined_false_negatives'], label='Combined False Negatives', marker='o')
+    # plt.title('False Negatives vs Angle Noise')
+    # plt.xlabel('Angle Standard Deviation')
+    # plt.ylabel('False Negatives (%)')
+    # plt.legend()
+    # plt.grid(True)
 
     # Plot robot and combined unknown percentage vs angle std
-    plt.figure()
-    plt.plot(angle_data['noise_value'], angle_data['robot1_unknown_percentage'], label='Robot 1 OGM Unknown Cells (%)', marker='o')
-    plt.plot(angle_data['noise_value'], angle_data['robot2_unknown_percentage'], label='Robot 2 OGM Unknown Cells (%)', marker='o')
-    plt.plot(angle_data['noise_value'], angle_data['combined_unknown_percentage'], label='Merged OGM Unknown Cells (%)', marker='o')
-    plt.title('Unknown Cells vs Angle Noise')
-    plt.xlabel('Angle Standard Deviation')
-    plt.ylabel('Unknown Cells (%)')
-    plt.legend()
-    plt.grid(True)
+    # plt.figure()
+    # plt.plot(angle_data['noise_value'], angle_data['robot1_unknown_percentage'], label='Robot 1 OGM Unknown Cells (%)', marker='o')
+    # plt.plot(angle_data['noise_value'], angle_data['robot2_unknown_percentage'], label='Robot 2 OGM Unknown Cells (%)', marker='o')
+    # plt.plot(angle_data['noise_value'], angle_data['combined_unknown_percentage'], label='Merged OGM Unknown Cells (%)', marker='o')
+    # plt.title('Unknown Cells vs Angle Noise')
+    # plt.xlabel('Angle Standard Deviation')
+    # plt.ylabel('Unknown Cells (%)')
+    # plt.legend()
+    # plt.grid(True)
     
     plt.show()
 

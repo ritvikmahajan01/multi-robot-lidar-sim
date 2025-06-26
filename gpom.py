@@ -7,10 +7,6 @@ import gpytorch as gp
 from scipy.stats import norm
 import time
 
-def load_robot_data(filename: str) -> Dict:
-    """Load robot data from .npy file."""
-    data = np.load(filename, allow_pickle=True).item()
-    return data
 
 
 def create_point_dataset(data: Dict, free_per_beam: int = 20) -> Tuple[np.ndarray, np.ndarray]:
@@ -183,7 +179,7 @@ def main():
     print(f"Using device: {device}")
 
     # Load the data
-    data = load_robot_data('robot_data.npy')
+    data = np.load('robot_data.npy', allow_pickle=True).item()
     
     # Create point dataset
     free_points, occupied_points = create_point_dataset(data['robot2'], free_per_beam=5)

@@ -2,32 +2,36 @@ import numpy as np
 import matplotlib.pyplot as plt
 from typing import Dict, List, Tuple
 import math
+from env_utils import ENVIRONMENT_CONFIG, ROBOT_CONFIG
+import mapping_utils
 
 def load_robot_data(filename: str) -> Dict:
     """Load robot data from .npy file."""
     data = np.load(filename, allow_pickle=True).item()
     return data
 
-def create_occupancy_grid(data: Dict, resolution: float = 0.05) -> Tuple[np.ndarray, np.ndarray, Tuple[float, float, float, float]]:
+def create_occupancy_grid(data: Dict) -> Tuple[np.ndarray, np.ndarray, Tuple[float, float, float, float]]:
     """Create an occupancy grid map from LiDAR readings."""
     # Find map boundaries
-    min_x = min_y = float('inf')
-    max_x = max_y = float('-inf')
-    
-    for robot_id in ['robot1', 'robot2']:
-        poses = data[robot_id]['poses']
-        for pose in poses:
-            min_x = min(min_x, pose[0])
-            max_x = max(max_x, pose[0])
-            min_y = min(min_y, pose[1])
-            max_y = max(max_y, pose[1])
+    min_x = min_y = 0.0
+    max_x = ENVIRONMENT_CONFIG['x_width']
+    max_y = ENVIRONMENT_CONFIG['y_height']
+    resolution = mapping_utils.default_resolution
+
+    # for robot_id in ['robot1', 'robot2']:
+    #     poses = data[robot_id]['poses']
+    #     for pose in poses:
+    #         min_x = min(min_x, pose[0])
+    #         max_x = max(max_x, pose[0])
+    #         min_y = min(min_y, pose[1])
+    #         max_y = max(max_y, pose[1])
     
     # Add some padding
-    padding = 1.0
-    min_x -= padding
-    min_y -= padding
-    max_x += padding
-    max_y += padding
+    # padding = 1.0
+    # min_x -= padding
+    # min_y -= padding
+    # max_x += padding
+    # max_y += padding
     
     # Create grid
     grid_width = int((max_x - min_x) / resolution)
@@ -52,7 +56,7 @@ def create_occupancy_grid(data: Dict, resolution: float = 0.05) -> Tuple[np.ndar
             
             for range_val, bearing in readings:
                 # Skip readings that are at max range (no obstacle detected)
-                if range_val >= 3:  # Maximum LiDAR range is 3.0m
+                if range_val >= ROBOT_CONFIG['lidar_range']:  # Maximum LiDAR range is 3.0m
                     continue
                     
                 # Calculate end point of LiDAR ray

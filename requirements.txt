@@ -1,5 +1,0 @@
-numpy>=1.21.0
-matplotlib>=3.4.0
-pygame>=2.0.0
-gpytorch
-torch 
