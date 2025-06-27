@@ -83,7 +83,7 @@ def evaluate_map_quality(data: dict, noise_params: dict) -> dict:
         grid2.update_from_lidar(pose, readings, 'robot2')
     
     # Create ground truth grid
-    ground_truth = create_ground_truth_grid(grid1, wall_thickness=1.0, resolution=0.05)
+    ground_truth = np.load('ground_truth_large.npy', allow_pickle=True)
     
     # Get observation regions
     region1 = grid1.get_observation_region('robot1', data)
@@ -106,12 +106,12 @@ def evaluate_map_quality(data: dict, noise_params: dict) -> dict:
 def analyze_noise_parameters():
     """Analyze how different noise levels affect map quality."""
     # Load existing data (assumed to be noise-free)
-    data = np.load('robot_data.npy', allow_pickle=True).item()
+    data = np.load('robot_data_large.npy', allow_pickle=True).item()
     
     # Define noise ranges to test
     noise_ranges = {
         'range_std': np.linspace(0, 0.5, 11),    # 0 to 0.5 meters
-        'angle_std': np.linspace(0, 0.1, 11),    # 0 to 0.1 radians
+        'angle_std': [0],    # 0 to 0.1 radians
         'velocity_std':  [0.0], #np.linspace(0, 0.2, 11), # 0 to 0.2 m/s
         'angular_std': [0.0] #np.linspace(0, 0.2, 11)   # 0 to 0.2 rad/s
     }

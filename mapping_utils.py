@@ -583,12 +583,17 @@ def evaluate_map(predicted_map: np.ndarray, ground_truth: np.ndarray,
 
     known_ground_truth = ground_truth[known_mask]   
     known_predicted_map = predicted_map[known_mask]
+
+    # Plot known ground truth
+    # plt.figure()
+    # plt.imshow(known_mask)
+    # plt.show()
     # Calculate ROC curve
     fpr, tpr, thresholds = roc_curve(known_ground_truth, known_predicted_map)
     roc_auc = roc_auc_score(known_ground_truth, known_predicted_map)
 
 
-    nll = log_loss(known_ground_truth, known_predicted_map)
+    nll = log_loss(known_ground_truth, known_predicted_map, labels=[0, 1])
     
     metrics = {
         'accuracy': accuracy,

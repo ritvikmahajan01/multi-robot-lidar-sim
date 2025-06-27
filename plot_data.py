@@ -126,7 +126,7 @@ def plot_robot_trajectories_and_map(data: Dict) -> None:
     # plt.savefig('robot_data.pdf')
 def main():
     # Load the data
-    data = load_robot_data('robot_data.npy')
+    data = load_robot_data('robot_data_mid.npy')
     
     # Print some basic statistics
     for robot_id in ['robot1', 'robot2']:

@@ -300,7 +300,7 @@ def main():
         y = np.arange(y_min, y_max, resolution)
         xx, yy = np.meshgrid(x, y)
         test_points = np.column_stack((xx.flatten(), yy.flatten()))
-        test_x = t.tensor(test_points, dtype=t.float32).to(device)
+        # test_x = t.tensor(test_points, dtype=t.float32).to(device)
 
 
         # Plot the results with raw gp predictions

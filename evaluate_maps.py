@@ -1,10 +1,10 @@
 import numpy as np
 from mapping_utils import RobotOccupancyGrid, create_ground_truth_grid, evaluate_map, combine_grid_maps
-
+import matplotlib.pyplot as plt
 
 def main():
     # Load data
-    data = np.load('robot_data.npy', allow_pickle=True).item()
+    data = np.load('robot_data_large.npy', allow_pickle=True).item()
     
     # Create and update occupancy grid for robot 1
     grid1 = RobotOccupancyGrid(resolution=0.05)
@@ -23,7 +23,11 @@ def main():
         grid2.update_from_lidar(pose, readings, 'robot2')
     
     # Create ground truth grid using grid1's dimensions
-    ground_truth = create_ground_truth_grid(wall_thickness=0.1, resolution=0.05, save=False)
+    ground_truth = np.load('ground_truth_large.npy', allow_pickle=True)
+
+    # Plot ground truth
+    # plt.imshow(ground_truth)
+    # plt.show()
     
     # Get observation regions
     region1 = grid1.get_observation_region('robot1', data)

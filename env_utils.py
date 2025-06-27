@@ -290,88 +290,62 @@ class Environment:
         self.show_ground_truth = config.get('show_ground_truth', True)
 
     def _create_walls(self) -> List[Tuple[Tuple[float, float], Tuple[float, float]]]:
+        xw = self.x_width
+        yh = self.y_height
         walls = []
         # Outer walls
         walls.extend([
-            ((0, 0), (self.x_width, 0)),      # Bottom
-            ((0, 0), (0, self.y_height)),      # Left
-            ((self.x_width, 0), (self.x_width, self.y_height)),    # Right
-            ((0, self.y_height), (self.x_width, self.y_height))     # Top
+            ((0, 0), (xw, 0)),      # Bottom
+            ((0, 0), (0, yh)),      # Left
+            ((xw, 0), (xw, yh)),    # Right
+            ((0, yh), (xw, yh))     # Top
         ])
-        # # Long horizontal shelves (spread across the map)
-        # walls.append(((2, 3), (self.x_width-2, 3)))    # Bottom left
-        # walls.append(((2, 3), (2, self.y_height-3)))   # Bottom right
-        # walls.append(((5, 7), (self.x_width-5, 7)))    # Mid left
-        walls.append(((self.x_width-5, 7), (self.x_width-5, self.y_height-7)))   # Mid right
-        walls.append(((3, 11), (13, 11)))  # Upper left
-        walls.append(((17, 11), (27, 11))) # Upper right
-        # walls.append(((8, 15), (22, 15)))  # Top center
-        # walls.append(((2, 18), (10, 18)))  # Top left
-        # walls.append(((20, 18), (28, 18))) # Top right
-        # Long vertical shelves
-        walls.append(((6, 2), (6, 8)))     # Lower left
-        walls.append(((24, 2), (24, 8)))   # Lower right
-        walls.append(((12, 5), (12, 12)))  # Mid left
-        # walls.append(((18, 5), (18, 12)))  # Mid right
-        # walls.append(((9, 8), (9, 16)))    # Upper left
-        # walls.append(((21, 8), (21, 16)))  # Upper right
-        # walls.append(((15, 12), (15, 18))) # Upper center
-        walls.append(((3, 14), (3, 18)))   # Far left
-        walls.append(((27, 14), (27, 18))) # Far right
+        # Long horizontal shelves (spread across the map)
+        # walls.append(((0.17*xw, 0.35*yh), (0.83*xw, 0.35*yh)))    # Mid left
+        walls.append(((0.83*xw, 0.35*yh), (0.83*xw, 0.65*yh)))   # Mid right
+        walls.append(((0.10*xw, 0.55*yh), (0.43*xw, 0.55*yh)))  # Upper left
+        walls.append(((0.57*xw, 0.55*yh), (0.90*xw, 0.55*yh))) # Upper right
+        walls.append(((0.20*xw, 0.10*yh), (0.20*xw, 0.40*yh)))     # Lower left
+        walls.append(((0.80*xw, 0.10*yh), (0.80*xw, 0.40*yh)))   # Lower right
+        walls.append(((0.40*xw, 0.25*yh), (0.40*xw, 0.60*yh)))  # Mid left
+        walls.append(((0.10*xw, 0.70*yh), (0.10*xw, 0.90*yh)))   # Far left
+        walls.append(((0.90*xw, 0.70*yh), (0.90*xw, 0.90*yh))) # Far right
         # Diagonal walls
-        walls.append(((8, 4), (12, 6)))    # Lower diagonal
-        # walls.append(((22, 4), (26, 6)))   # Lower diagonal
-        # walls.append(((4, 8), (8, 10)))    # Mid diagonal
-        # walls.append(((18, 8), (22, 10)))  # Mid diagonal
-        # walls.append(((10, 12), (14, 14))) # Upper diagonal
-        walls.append(((24, 12), (28, 14))) # Upper diagonal
-        walls.append(((6, 16), (10, 18)))  # Top diagonal
-        walls.append(((20, 16), (24, 18))) # Top diagonal
+        walls.append(((0.27*xw, 0.20*yh), (0.40*xw, 0.30*yh)))    # Lower diagonal
+        walls.append(((0.80*xw, 0.60*yh), (0.93*xw, 0.70*yh))) # Upper diagonal
+        walls.append(((0.20*xw, 0.80*yh), (0.33*xw, 0.90*yh)))  # Top diagonal
+        walls.append(((0.67*xw, 0.80*yh), (0.80*xw, 0.90*yh))) # Top diagonal
         # L-shaped shelves
-        walls.append(((2, 2), (6, 2)))     # L1 horizontal
-        walls.append(((2, 2), (2, 6)))     # L1 vertical
-        walls.append(((24, 2), (28, 2)))   # L2 horizontal
-        walls.append(((28, 2), (28, 6)))   # L2 vertical
-        # walls.append(((2, 14), (6, 14)))   # L3 horizontal
-        # walls.append(((2, 14), (2, 18)))   # L3 vertical
-        # walls.append(((24, 14), (28, 14))) # L4 horizontal
-        # walls.append(((28, 14), (28, 18))) # L4 vertical
-        # # T-shaped shelves
-        walls.append(((14, 5), (18, 5)))   # T1 top
-        walls.append(((16, 5), (16, 9)))   # T1 stem
-        walls.append(((8, 9), (12, 9)))    # T2 top
-        walls.append(((10, 9), (10, 13)))  # T2 stem
-        walls.append(((20, 13), (24, 13))) # T3 top
-        walls.append(((22, 13), (22, 17))) # T3 stem
+        walls.append(((0.07*xw, 0.10*yh), (0.20*xw, 0.10*yh)))     # L1 horizontal
+        walls.append(((0.07*xw, 0.10*yh), (0.07*xw, 0.30*yh)))     # L1 vertical
+        walls.append(((0.80*xw, 0.10*yh), (0.93*xw, 0.10*yh)))   # L2 horizontal
+        walls.append(((0.93*xw, 0.10*yh), (0.93*xw, 0.30*yh)))   # L2 vertical
+        # T-shaped shelves
+        walls.append(((0.47*xw, 0.25*yh), (0.60*xw, 0.25*yh)))   # T1 top
+        walls.append(((0.53*xw, 0.25*yh), (0.53*xw, 0.45*yh)))   # T1 stem
+        walls.append(((0.27*xw, 0.45*yh), (0.40*xw, 0.45*yh)))    # T2 top
+        walls.append(((0.33*xw, 0.45*yh), (0.33*xw, 0.65*yh)))  # T2 stem
+        walls.append(((0.67*xw, 0.65*yh), (0.80*xw, 0.65*yh))) # T3 top
+        walls.append(((0.73*xw, 0.65*yh), (0.73*xw, 0.85*yh))) # T3 stem
         # Zig-zag walls
-        walls.append(((4, 5), (6, 5)))     # Zig1
-        walls.append(((6, 5), (6, 7)))     # Zig1
-        walls.append(((6, 7), (8, 7)))     # Zig1
-        walls.append(((8, 7), (8, 9)))     # Zig1
-        # walls.append(((8, 9), (10, 9)))    # Zig1
-        # walls.append(((22, 5), (24, 5)))   # Zig2
-        # walls.append(((24, 5), (24, 7)))   # Zig2
-        # walls.append(((24, 7), (26, 7)))   # Zig2
-        walls.append(((26, 7), (26, 9)))   # Zig2
-        walls.append(((26, 9), (28, 9)))   # Zig2
-        # Many small obstacles (pallets/boxes) in square shape - spread across the map
+        walls.append(((0.13*xw, 0.25*yh), (0.20*xw, 0.25*yh)))     # Zig1
+        walls.append(((0.20*xw, 0.25*yh), (0.20*xw, 0.35*yh)))     # Zig1
+        walls.append(((0.20*xw, 0.35*yh), (0.27*xw, 0.35*yh)))     # Zig1
+        walls.append(((0.27*xw, 0.35*yh), (0.27*xw, 0.45*yh)))     # Zig1
+        walls.append(((0.87*xw, 0.35*yh), (0.87*xw, 0.45*yh)))   # Zig2
+        walls.append(((0.87*xw, 0.45*yh), (0.97*xw, 0.45*yh)))   # Zig2
+        # Pallets (scaled)
         pallet_centers = [
-            # Bottom area
-            (4, 1), (8, 1), (12, 1), (16, 1), (20, 1), (24, 1), (28, 1),
-            (3, 4), (7, 4), (11, 4), (15, 4), (19, 4), (23, 4), (27, 4),
-            (5, 6), (9, 6), (13, 6), (17, 6), (21, 6), (25, 6), (29, 6),
-            # Mid area
-            (2, 9), (6, 9), (10, 9), (14, 9), (18, 9), (22, 9), (26, 9),
-            # (4, 12), (8, 12), (12, 12), (16, 12), (20, 12), (24, 12), (28, 12),
-            # (6, 14), (10, 14), (14, 14), (18, 14), (22, 14), (26, 14),
-            # # Upper area
-            (3, 16), (7, 16), (11, 16), (15, 16), (19, 16), (23, 16), (27, 16),
-            (5, 18), (9, 18), (13, 18), (17, 18), (21, 18), (25, 18), (29, 18),
-            # Random scattered
-            (1.5, 3), (5.5, 8), (9.5, 13), (13.5, 17), (17.5, 2), (21.5, 7), (25.5, 12), (29.5, 16),
-            (2.5, 6), (6.5, 11), (10.5, 15), (14.5, 19), (18.5, 4), (22.5, 9), (26.5, 14), (28.5, 8)
+            (0.13*xw, 0.05*yh), (0.27*xw, 0.05*yh), (0.40*xw, 0.05*yh), (0.53*xw, 0.05*yh), (0.67*xw, 0.05*yh), (0.80*xw, 0.05*yh), (0.97*xw, 0.05*yh),
+            (0.10*xw, 0.20*yh), (0.23*xw, 0.20*yh), (0.37*xw, 0.20*yh), (0.50*xw, 0.20*yh), (0.63*xw, 0.20*yh), (0.77*xw, 0.20*yh), (0.90*xw, 0.20*yh),
+            (0.17*xw, 0.30*yh), (0.30*xw, 0.30*yh), (0.43*xw, 0.30*yh), (0.57*xw, 0.30*yh), (0.70*xw, 0.30*yh), (0.83*xw, 0.30*yh), (0.97*xw, 0.30*yh),
+            (0.07*xw, 0.45*yh), (0.20*xw, 0.45*yh), (0.33*xw, 0.45*yh), (0.47*xw, 0.45*yh), (0.60*xw, 0.45*yh), (0.73*xw, 0.45*yh), (0.87*xw, 0.45*yh),
+            (0.10*xw, 0.80*yh), (0.23*xw, 0.80*yh), (0.37*xw, 0.80*yh), (0.50*xw, 0.80*yh), (0.63*xw, 0.80*yh), (0.77*xw, 0.80*yh), (0.90*xw, 0.80*yh),
+            (0.17*xw, 0.90*yh), (0.30*xw, 0.90*yh), (0.43*xw, 0.90*yh), (0.57*xw, 0.90*yh), (0.70*xw, 0.90*yh), (0.83*xw, 0.90*yh), (0.97*xw, 0.90*yh),
+            (0.05*xw, 0.15*yh), (0.18*xw, 0.40*yh), (0.32*xw, 0.65*yh), (0.45*xw, 0.85*yh), (0.58*xw, 0.10*yh), (0.72*xw, 0.35*yh), (0.85*xw, 0.60*yh), (0.98*xw, 0.80*yh),
+            (0.08*xw, 0.30*yh), (0.22*xw, 0.55*yh), (0.35*xw, 0.75*yh), (0.48*xw, 0.95*yh), (0.62*xw, 0.20*yh), (0.75*xw, 0.45*yh), (0.88*xw, 0.70*yh), (0.95*xw, 0.40*yh)
         ]
-        pallet_size = 0.5
+        pallet_size = 0.5 * (xw/30)  # Scaled with xw
         for cx, cy in pallet_centers:
             half = pallet_size / 2
             walls.extend([
@@ -381,8 +355,8 @@ class Environment:
                 ((cx - half, cy + half), (cx - half, cy - half)),
             ])
         # Circular columns (approximated as octagons) - more spread out
-        column_centers = [(7, 5), (23, 5), (11, 10),  (5, 13), (27, 13)]
-        column_radius = 0.4
+        column_centers = [(0.23*xw, 0.25*yh), (0.77*xw, 0.25*yh), (0.37*xw, 0.50*yh),  (0.17*xw, 0.65*yh), (0.90*xw, 0.65*yh)]
+        column_radius = 0.4 * (xw/30)
         for cx, cy in column_centers:
             points = []
             for i in range(8):
