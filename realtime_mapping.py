@@ -17,16 +17,16 @@ class RealtimeOccupancyGrid(RobotOccupancyGrid):
         super().__init__(resolution)
         # Initialize with fixed bounds based on environment size
         min_x = 0
-        max_x = 12  # Based on environment width
+        max_x =  ENVIRONMENT_CONFIG['x_width'] # Based on environment width
         min_y = 0
-        max_y = 8   # Based on environment height
+        max_y =  ENVIRONMENT_CONFIG['y_height']   # Based on environment height
         
         # Add padding
-        padding = 1.0
-        min_x -= padding
-        min_y -= padding
-        max_x += padding
-        max_y += padding
+        # padding = 1.0
+        # min_x -= padding
+        # min_y -= padding
+        # max_x += padding
+        # max_y += padding
         
         # Create grid
         grid_width = int((max_x - min_x) / self.resolution)

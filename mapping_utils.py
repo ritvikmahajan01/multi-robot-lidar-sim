@@ -33,7 +33,7 @@ class RobotOccupancyGrid:
         self.free_points_sampled = 0  # Counter for free points sampled
         self.occupied_points_sampled = 0  # Counter for occupied points sampled
     
-    def initialize_grid(self, data: Dict) -> None:
+    def initialize_grid(self, data: Dict = None) -> None:
         """Initialize grid dimensions based on robot trajectories."""
         # Find map boundaries
         min_x = 0
@@ -126,6 +126,8 @@ class RobotOccupancyGrid:
         elif current_detection != robot_num:
             self.robot_detections[grid_y, grid_x] = 3  # Both robots
     
+
+
     def update_from_lidar(self, pose: Tuple[float, float, float], 
                          lidar_readings: List[Tuple[float, float]], robot_id: str) -> None:
         """Update grid using LiDAR readings."""
