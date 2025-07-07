@@ -9,7 +9,7 @@ import csv
 def main():
     """Example usage of the RobotOccupancyGrid class."""
     # Load data
-    data = np.load('robot_data_large.npy', allow_pickle=True).item()
+    data = np.load('robot_data.npy', allow_pickle=True).item()
 
     
     # Count number of LiDAR readings in dataset

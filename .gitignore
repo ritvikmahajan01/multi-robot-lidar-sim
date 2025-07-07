@@ -37,5 +37,4 @@ Thumbs.db
 
 # Large data files
 *.npy
-ground_truth_*.npy
-robot_data_*.npy 
+*.pth

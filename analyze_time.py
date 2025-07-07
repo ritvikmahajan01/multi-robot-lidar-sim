@@ -5,8 +5,13 @@ from datetime import datetime
 import os
 import time
 from mapping_utils import RobotOccupancyGrid, combine_grid_maps, evaluate_map
+from matplotlib.ticker import MaxNLocator, ScalarFormatter
+from env_utils import ROBOT_CONFIG, ENVIRONMENT_CONFIG
+import math
+from typing import Dict, Tuple
+import random
 
-def add_noise_to_readings(readings, range_std=0.1, angle_std=0.0):
+def add_noise_to_readings(readings, range_std=0.4, angle_std=0.0):
     """Add noise to LiDAR readings."""
     noisy_readings = []
     for reading_list in readings:
@@ -36,19 +41,19 @@ def get_fraction_data(data, step):
     Returns:
         Dictionary with fraction of data
     """
-    
+
+    # For each robot, take every nth pose and lidar reading
     fraction_data = {
-        'robot1': {
-            'poses': data['robot1']['poses'][::step],
-            'lidar_readings': data['robot1']['lidar_readings'][::step]
-        },
-        'robot2': {
-            'poses': data['robot2']['poses'][::step],
-            'lidar_readings': data['robot2']['lidar_readings'][::step]
+            'poses': data['poses'][::step],
+            'lidar_readings': data['lidar_readings'][::step]
         }
-    }
+        
+
     
     return fraction_data
+
+
+
 
 def count_total_points(data):
     """Count total LiDAR readings in the dataset."""
@@ -115,23 +120,29 @@ def evaluate_map_with_timing(data, ground_truth):
         'total_points': total_points,
         'robot1_roc_auc': metrics1['roc_auc'],
         'robot1_nll': metrics1['nll'],
-        'robot1_unknown_percentage': metrics1['unknown_percentage'] * 100,
+        'robot1_unknown_percentage': metrics1['unknown_percentage'],
+        'robot1_classified_area': metrics1['classified_area_percentage'],
+        'robot1_total_points': robot1_total,
         'robot2_roc_auc': metrics2['roc_auc'],
         'robot2_nll': metrics2['nll'],
-        'robot2_unknown_percentage': metrics2['unknown_percentage'] * 100,
+        'robot2_unknown_percentage': metrics2['unknown_percentage'],
+        'robot2_classified_area': metrics2['classified_area_percentage'],
+        'robot2_total_points': robot2_total,
         'combined_roc_auc': metrics_combined['roc_auc'],
         'combined_nll': metrics_combined['nll'],
-        'combined_unknown_percentage': metrics_combined['unknown_percentage'] * 100
+        'combined_unknown_percentage': metrics_combined['unknown_percentage'],
+        'combined_classified_area': metrics_combined['classified_area_percentage']
     }
 
 def analyze_time_performance():
     """Analyze time performance and map quality vs data fraction."""
     # Load data
-    data = np.load('robot_data_large.npy', allow_pickle=True).item()
-    ground_truth = np.load('ground_truth_large.npy', allow_pickle=True)
+    data = np.load('robot_data.npy', allow_pickle=True).item()
+    ground_truth = np.load('ground_truth_mid.npy', allow_pickle=True)
     
-    # Define fractions to test (every nth measurement)
-    steps = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+    steps = [1, 2, 3, 4, 5, 10, 20, 50, 85, 120, 200]
+    # steps = [int(1/fraction) for fraction in fractions]
     
 
     
@@ -139,23 +150,24 @@ def analyze_time_performance():
     results = []
     
     print("Starting time performance analysis...")
-    print(f"Testing {len(steps)} different data fractions...")
+    print(f"Testing {len(steps)} different data steps...")
     
     for step in steps:
         print(f"\nTesting step: {step}")
         
         # Get fraction of data
-        fraction_data = get_fraction_data(data, step)
+        fraction_data_robot1 = get_fraction_data(data['robot1'], step)
+        fraction_data_robot2 = get_fraction_data(data['robot2'], step)
         
         # Add noise to the fraction data
         noisy_data = {
             'robot1': {
-                'poses': fraction_data['robot1']['poses'],
-                'lidar_readings': add_noise_to_readings(fraction_data['robot1']['lidar_readings'], range_std=0.1)
+                'poses': fraction_data_robot1['poses'],
+                'lidar_readings': add_noise_to_readings(fraction_data_robot1['lidar_readings'], range_std=0.5)
             },
             'robot2': {
-                'poses': fraction_data['robot2']['poses'],
-                'lidar_readings': add_noise_to_readings(fraction_data['robot2']['lidar_readings'], range_std=0.1)
+                'poses': fraction_data_robot2['poses'],
+                'lidar_readings': add_noise_to_readings(fraction_data_robot2['lidar_readings'], range_std=0.5)
             }
         }
         
@@ -165,7 +177,8 @@ def analyze_time_performance():
         # Add metadata
         result['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         result['step'] = step
-        result['fraction_percentage'] = (1.0 / step) * 100
+        result['step_percentage'] = (1.0 / step) * 100
+        # result['total_points'] = count_total_points(noisy_data)
         
         results.append(result)
         
@@ -173,6 +186,8 @@ def analyze_time_performance():
         print(f"  Total points: {result['total_points']}")
         print(f"  Robot 1 time: {result['robot1_time']:.3f}s")
         print(f"  Robot 2 time: {result['robot2_time']:.3f}s")
+        print(f"  Robot 1 total points: {result['robot1_total_points']}")
+        print(f"  Robot 2 total points: {result['robot2_total_points']}")
         print(f"  Combined time: {result['combined_time']:.3f}s")
         print(f"  Combined ROC AUC: {result['combined_roc_auc']:.3f}")
         print(f"  Combined NLL: {result['combined_nll']:.3f}")
@@ -190,82 +205,213 @@ def analyze_time_performance():
     print(f"\nResults saved to: {csv_path}")
     
     # Create plots
-    plot_results(df)
+    plot_results_with_points(df)
     
     return df
 
-def plot_results(df):
+def plot_results_with_points(df):
     """Plot results from the DataFrame."""
 
-    
+    points_in_thousands = df['total_points'] / 1000
+
     # Plot 1: Timing vs Fraction
     plt.figure()
-    plt.plot(df['fraction_percentage'], df['robot1_time'], 'o-', label='Robot 1', color='red')
-    plt.plot(df['fraction_percentage'], df['robot2_time'], 's-', label='Robot 2', color='blue')
-    plt.plot(df['fraction_percentage'], df['combined_time'], '^-', label='Map Merging', color='green')
-    plt.plot(df['fraction_percentage'], df['total_time'], 'd-', label='Total Time', color='black')
-    plt.xlabel('Fraction of Data Considered')
+    plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.gca().xaxis.set_major_formatter(ScalarFormatter(useOffset=False, useMathText=False))
+    plt.plot(points_in_thousands, df['robot1_time'], 'o-', label='Robot 1', color='red')
+    plt.plot(points_in_thousands, df['robot2_time'], 's-', label='Robot 2', color='blue')
+    plt.plot(points_in_thousands, df['combined_time'], '^-', label='Map Merging', color='green')
+    plt.plot(points_in_thousands, df['total_time'], 'd-', label='Total Time', color='black')
+    plt.xlabel('Total Points (thousands)')
     plt.ylabel('Time (seconds)')
-    plt.title('Processing Time vs Fraction of Data Considered')
+    plt.title('Processing Time vs Total Points')
     plt.legend()
     plt.grid(True)
-    
+    plt.xticks(rotation=45)
 
     # Plot 2: ROC AUC vs Fraction
     plt.figure()
-    plt.plot(df['fraction_percentage'], df['robot1_roc_auc'], 'o-', label='Robot 1', color='red')
-    plt.plot(df['fraction_percentage'], df['robot2_roc_auc'], 's-', label='Robot 2', color='blue')
-    plt.plot(df['fraction_percentage'], df['combined_roc_auc'], '^-', label='Combined', color='green')
-    plt.xlabel('Fraction of Data Considered')
+    plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.gca().xaxis.set_major_formatter(ScalarFormatter(useOffset=False, useMathText=False))
+    plt.plot(points_in_thousands, df['robot1_roc_auc'], 'o-', label='Robot 1', color='red')
+    plt.plot(points_in_thousands, df['robot2_roc_auc'], 's-', label='Robot 2', color='blue')
+    plt.plot(points_in_thousands, df['combined_roc_auc'], '^-', label='Combined', color='green')
+    plt.xlabel('Total Points (thousands)')
     plt.ylabel('ROC AUC')
-    plt.title('ROC AUC vs Fraction of Data Considered')
+    plt.title('ROC AUC vs Total Points')
     plt.legend()
     plt.grid(True)
-    
+    plt.xticks(rotation=45)
+
     # Plot 3: NLL vs Fraction
     plt.figure()
-    plt.plot(df['fraction_percentage'], df['robot1_nll'], 'o-', label='Robot 1', color='red')
-    plt.plot(df['fraction_percentage'], df['robot2_nll'], 's-', label='Robot 2', color='blue')
-    plt.plot(df['fraction_percentage'], df['combined_nll'], '^-', label='Combined', color='green')
-    plt.xlabel('Fraction of Data Considered')
+    plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.gca().xaxis.set_major_formatter(ScalarFormatter(useOffset=False, useMathText=False))
+    plt.plot(points_in_thousands, df['robot1_nll'], 'o-', label='Robot 1', color='red')
+    plt.plot(points_in_thousands, df['robot2_nll'], 's-', label='Robot 2', color='blue')
+    plt.plot(points_in_thousands, df['combined_nll'], '^-', label='Combined', color='green')
+    plt.xlabel('Total Points (thousands)')
     plt.ylabel('Negative Log Likelihood')
-    plt.title('NLL vs Fraction of Data Considered')
+    plt.title('NLL vs Total Points')
     plt.legend()
     plt.grid(True)
-    
-    # Plot 4: Unknown Percentage vs Fraction
-    plt.figure()
-    plt.plot(df['fraction_percentage'], df['robot1_unknown_percentage'], 'o-', label='Robot 1', color='red')
-    plt.plot(df['fraction_percentage'], df['robot2_unknown_percentage'], 's-', label='Robot 2', color='blue')
-    plt.plot(df['fraction_percentage'], df['combined_unknown_percentage'], '^-', label='Combined', color='green')
-    plt.xlabel('Fraction of Data Considered')
-    plt.ylabel('Unknown Percentage (%)')
-    plt.title('Unknown Percentage vs Fraction of Data Considered')
-    plt.legend()
-    plt.grid(True)
-    
+    plt.xticks(rotation=45)
+
     # Plot 5: Time per Point vs Fraction
     time_per_point = df['total_time'] / df['total_readings']
     plt.figure()
-    plt.plot(df['fraction_percentage'], time_per_point, 'o-', color='purple')
-    plt.xlabel('Fraction of Data Considered')
-    plt.ylabel('Time per Point (seconds)')
-    plt.title('Processing Efficiency vs Fraction of Data Considered')
+    plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.gca().xaxis.set_major_formatter(ScalarFormatter(useOffset=False, useMathText=False))
+    plt.plot(points_in_thousands, time_per_point, 'o-', color='purple')
+    plt.xlabel('Total Points (thousands)')
+    plt.ylabel('Time per reading (seconds)')
+    plt.title('Processing Efficiency vs Total Points')
     plt.grid(True)
-    
-    # Plot 6: Total Points vs Fraction
-    # plt.figure()
-    # plt.plot(df['fraction_percentage'], df['total_readings'], 'o-', color='orange')
-    # plt.xlabel('Fraction of Data Considered')
-    # plt.ylabel('Total Readings')
-    # plt.title('Total Readings vs Fraction of Data Considered')
-    # plt.grid(True)
-    
-    # plt.tight_layout()
-    # plt.savefig('data/time_analysis_plots.png', dpi=300, bbox_inches='tight')
+    plt.xticks(rotation=45)
+
+    # Plot 6: Classified Area vs Fraction
+    plt.figure()
+    plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.gca().xaxis.set_major_formatter(ScalarFormatter(useOffset=False, useMathText=False))
+    plt.plot(points_in_thousands, df['robot1_classified_area'], 'o-', label='Robot 1', color='red')
+    plt.plot(points_in_thousands, df['robot2_classified_area'], 's-', label='Robot 2', color='blue')
+    plt.plot(points_in_thousands, df['combined_classified_area'], '^-', label='Combined', color='green')
+    plt.xlabel('Total Points (thousands)')
+    plt.ylabel('Classified Area (%)')
+    plt.title('Classified Area vs Total Points')
+    plt.legend()
+    plt.grid(True)
+    plt.xticks(rotation=45)
+
     plt.show()
     
     # print("Plots saved to: data/time_analysis_plots.png")
+
+def analyze_noise_performance():
+    """Analyze time performance and map quality vs noise, keeping step size constant."""
+
+    noise_values = [0.1,0.2,0.3,0.4,0.5] # Example: 0.0, 0.1, ..., 0.6
+
+    # Load data
+    data = np.load('robot_data.npy', allow_pickle=True).item()
+    ground_truth = np.load('ground_truth_mid.npy', allow_pickle=True)
+
+    # Get fraction of data for the fixed step
+    fraction_data_robot1 = get_fraction_data(data['robot1'], 85)
+    fraction_data_robot2 = get_fraction_data(data['robot2'], 120)
+
+    results = []
+    print("Starting noise performance analysis...")
+    # print(f"Testing {len(noise_values)} different noise values at step size {step}...")
+
+    for noise in noise_values:
+        print(f"\nTesting noise: {noise}")
+        # Add noise to the fraction data
+        noisy_data = {
+            'robot1': {
+                'poses': fraction_data_robot1['poses'],
+                'lidar_readings': add_noise_to_readings(fraction_data_robot1['lidar_readings'], range_std=noise)
+            },
+            'robot2': {
+                'poses': fraction_data_robot2['poses'],
+                'lidar_readings': add_noise_to_readings(fraction_data_robot2['lidar_readings'], range_std=noise)
+            }
+        }
+
+        # Evaluate with timing
+        result = evaluate_map_with_timing(noisy_data, ground_truth)
+        result['timestamp'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # result['step'] = step
+        result['noise'] = noise
+        results.append(result)
+
+        # Print progress
+        print(f"  Total points: {result['total_points']}")
+        print(f"  Robot 1 time: {result['robot1_time']:.3f}s")
+        print(f"  Robot 2 time: {result['robot2_time']:.3f}s")
+        print(f"  Robot 1 total points: {result['robot1_total_points']}")
+        print(f"  Robot 2 total points: {result['robot2_total_points']}")
+        print(f"  Combined time: {result['combined_time']:.3f}s")
+        print(f"  Combined ROC AUC: {result['combined_roc_auc']:.3f}")
+        print(f"  Combined NLL: {result['combined_nll']:.3f}")
+        print(f"  Combined Unknown %: {result['combined_unknown_percentage']:.1f}%")
+
+    # Convert results to DataFrame
+    df = pd.DataFrame(results)
+    os.makedirs('data', exist_ok=True)
+    csv_path = f'data/noise_analysis_results.csv'
+    df.to_csv(csv_path, index=False)
+    print(f"\nResults saved to: {csv_path}")
+    plot_results_with_noise(df)
+    return df
+
+def plot_results_with_noise(df):
+    """Plot results from the DataFrame with noise on the x-axis."""
+    from matplotlib.ticker import MaxNLocator, ScalarFormatter
+    x = df['noise']
+
+    # Plot 1: Timing vs Noise
+    plt.figure()
+    plt.gca().xaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.gca().xaxis.set_major_formatter(ScalarFormatter(useOffset=False, useMathText=False))
+    plt.plot(x, df['robot1_time'], 'o-', label='Robot 1', color='red')
+    plt.plot(x, df['robot2_time'], 's-', label='Robot 2', color='blue')
+    plt.plot(x, df['combined_time'], '^-', label='Map Merging', color='green')
+    plt.plot(x, df['total_time'], 'd-', label='Total Time', color='black')
+    plt.xlabel('Noise (std)')
+    plt.ylabel('Time (seconds)')
+    plt.title('Processing Time vs Noise')
+    plt.legend()
+    plt.grid(True)
+    plt.xticks(rotation=45)
+
+    # Plot 2: ROC AUC vs Noise
+    plt.figure()
+    plt.plot(x, df['robot1_roc_auc'], 'o-', label='Robot 1', color='red')
+    plt.plot(x, df['robot2_roc_auc'], 's-', label='Robot 2', color='blue')
+    plt.plot(x, df['combined_roc_auc'], '^-', label='Combined', color='green')
+    plt.xlabel('Noise (std)')
+    plt.ylabel('ROC AUC')
+    plt.title('ROC AUC vs Noise')
+    plt.legend()
+    plt.grid(True)
+    plt.xticks(rotation=45)
+
+    # Plot 3: NLL vs Noise
+    plt.figure()
+    plt.plot(x, df['robot1_nll'], 'o-', label='Robot 1', color='red')
+    plt.plot(x, df['robot2_nll'], 's-', label='Robot 2', color='blue')
+    plt.plot(x, df['combined_nll'], '^-', label='Combined', color='green')
+    plt.xlabel('Noise (std)')
+    plt.ylabel('Negative Log Likelihood')
+    plt.title('NLL vs Noise')
+    plt.legend()
+    plt.grid(True)
+    plt.xticks(rotation=45)
+
+    # Plot 4: Classified Area vs Noise
+    plt.figure()
+    plt.plot(x, df['robot1_classified_area'], 'o-', label='Robot 1', color='red')
+    plt.plot(x, df['robot2_classified_area'], 's-', label='Robot 2', color='blue')
+    plt.plot(x, df['combined_classified_area'], '^-', label='Combined', color='green')
+    plt.xlabel('Noise (std)')
+    plt.ylabel('Classified Area (%)')
+    plt.title('Classified Area vs Noise')
+    plt.legend()
+    plt.grid(True)
+    plt.xticks(rotation=45)
+
+    # Plot 5: Time per Point vs Noise
+    # time_per_point = df['total_time'] / df['total_readings']
+    # plt.figure()
+    # plt.plot(x, time_per_point, 'o-', color='purple')
+    # plt.xlabel('Noise (std)')
+    # plt.ylabel('Time per reading (seconds)')
+    # plt.title('Processing Efficiency vs Noise')
+    # plt.grid(True)
+    # plt.xticks(rotation=45)
+
+    plt.show()
 
 def main():
     """Main function to run the time analysis."""
@@ -273,7 +419,8 @@ def main():
     print("=" * 50)
     
     # Run the analysis
-    results_df = analyze_time_performance()
+    # results_df = analyze_time_performance()
+    results_df = analyze_noise_performance()
 
 
 if __name__ == "__main__":

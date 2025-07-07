@@ -56,7 +56,7 @@ def create_occupancy_grid(data: Dict) -> Tuple[np.ndarray, np.ndarray, Tuple[flo
             
             for range_val, bearing in readings:
                 # Skip readings that are at max range (no obstacle detected)
-                if range_val >= ROBOT_CONFIG['lidar_range']:  # Maximum LiDAR range is 3.0m
+                if range_val >= ROBOT_CONFIG['lidar_range']:
                     continue
                     
                 # Calculate end point of LiDAR ray
@@ -80,12 +80,12 @@ def plot_robot_trajectories_and_map(data: Dict) -> None:
     # Create a custom colormap for the colored occupancy grid
     # 0: white (empty), 1: red (robot1), 2: blue (robot2)
     colors = ['white', 'red', 'blue']
-    cmap = plt.cm.colors.ListedColormap(colors)
+    # cmap = plt.cm.colors.ListedColormap(colors)
     
     # Plot colored occupancy grid
-    fig1, ax1 = plt.subplots(figsize=(10, 8))
-    ax1.imshow(robot_grid, origin='lower', extent=[min_x, max_x, min_y, max_y],
-              cmap=cmap, interpolation='nearest')
+    # fig1, ax1 = plt.subplots(figsize=(10, 8))
+    # ax1.imshow(robot_grid, origin='lower', extent=[min_x, max_x, min_y, max_y],
+    #           cmap=cmap, interpolation='nearest')
     
     # Plot binary occupancy grid
     fig2, ax2 = plt.subplots(figsize=(10, 8))
@@ -101,18 +101,18 @@ def plot_robot_trajectories_and_map(data: Dict) -> None:
         color = colors[robot_id]
         
         # Plot trajectory on both figures
-        for ax in [ax1, ax2]:
-            ax.plot(x_coords, y_coords, '-', color=color, label=f'{robot_id} trajectory', alpha=0.7)
-            ax.plot(x_coords[0], y_coords[0], 'o', color=color, label=f'{robot_id} start')
-            ax.plot(x_coords[-1], y_coords[-1], 's', color=color, label=f'{robot_id} end')
+        # for ax in [ax1, ax2]:
+        ax2.plot(x_coords, y_coords, '-', color=color, label=f'{robot_id} trajectory', alpha=0.7)
+        ax2.plot(x_coords[0], y_coords[0], 'o', color=color, label=f'{robot_id} start')
+        ax2.plot(x_coords[-1], y_coords[-1], 's', color=color, label=f'{robot_id} end')
     
     # Customize plots
-    ax1.set_title('Lidar Readings\n(by Robot)')
-    ax1.set_xlabel('X (m)')
-    ax1.set_ylabel('Y (m)')
-    ax1.grid(True)
-    ax1.legend()
-    ax1.axis('equal')
+    # ax1.set_title('Lidar Readings\n(by Robot)')
+    # ax1.set_xlabel('X (m)')
+    # ax1.set_ylabel('Y (m)')
+    # ax1.grid(True)
+    # ax1.legend()
+    # ax1.axis('equal')
     
     ax2.set_title('Lidar Readings')
     ax2.set_xlabel('X (m)')
@@ -126,15 +126,15 @@ def plot_robot_trajectories_and_map(data: Dict) -> None:
     # plt.savefig('robot_data.pdf')
 def main():
     # Load the data
-    data = load_robot_data('robot_data_mid.npy')
+    data = load_robot_data('robot_data.npy')
     
     # Print some basic statistics
     for robot_id in ['robot1', 'robot2']:
         num_poses = len(data[robot_id]['poses'])
         print(f"\n=== {robot_id} Statistics ===")
         print(f"Number of recorded poses: {num_poses}")
-        print(f"First pose: {data[robot_id]['poses'][0]}")
-        print(f"Last pose: {data[robot_id]['poses'][-1]}")
+        # print(f"First pose: {data[robot_id]['poses'][0]}")
+        # print(f"Last pose: {data[robot_id]['poses'][-1]}")
         print(f"Number of LiDAR readings: {len(data[robot_id]['lidar_readings'])}")
     
     # Plot the data

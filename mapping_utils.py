@@ -550,22 +550,24 @@ def evaluate_map(predicted_map: np.ndarray, ground_truth: np.ndarray,
     known_mask = (ternary_map != 0.5) & mask
     
     # True positives: correctly identified occupied cells
-    tp = np.sum((ternary_map == 1) & (ground_truth == 1) & known_mask)
+    tp = np.sum((ternary_map == 1) & (ground_truth == 1))
     
     # True negatives: correctly identified free cells
-    tn = np.sum((ternary_map == 0) & (ground_truth == 0) & known_mask)
+    tn = np.sum((ternary_map == 0) & (ground_truth == 0))
     
     # False positives: incorrectly identified as occupied
-    fp = np.sum((ternary_map == 1) & (ground_truth == 0) & known_mask)
+    fp = np.sum((ternary_map == 1) & (ground_truth == 0))
     
     # False negatives: incorrectly identified as free
-    fn = np.sum((ternary_map == 0) & (ground_truth == 1) & known_mask)
+    fn = np.sum((ternary_map == 0) & (ground_truth == 1))
+
+    total_valid = tp + tn + fp + fn
     
     # Unknown cells in observed region
-    unknown = np.sum((ternary_map == 0.5) & mask)
+    unknown = ((ground_truth.shape[0] * ground_truth.shape[1]) - total_valid)
     
-    # Calculate total valid cells (excluding unknown)
-    total_valid = tp + tn + fp + fn
+    
+    
     
     # Calculate metrics only if there are valid cells to evaluate
     if total_valid > 0:
@@ -577,30 +579,33 @@ def evaluate_map(predicted_map: np.ndarray, ground_truth: np.ndarray,
         false_negatives = 0.0
         false_positives = 0.0
     
-    unknown_percentage = unknown / total_observed
-    observed_area_percentage = total_observed / (ground_truth.shape[0] * ground_truth.shape[1])
+    unknown_percentage = unknown / (ground_truth.shape[0] * ground_truth.shape[1])
+    classified_area_percentage = total_valid / (ground_truth.shape[0] * ground_truth.shape[1])
 
 
-    known_ground_truth = ground_truth[known_mask]   
-    known_predicted_map = predicted_map[known_mask]
+    # known_ground_truth = ground_truth[known_mask]   
+    # known_predicted_map = predicted_map[known_mask]
 
     # Plot known ground truth
     # plt.figure()
     # plt.imshow(known_mask)
     # plt.show()
     # Calculate ROC curve
-    fpr, tpr, thresholds = roc_curve(known_ground_truth, known_predicted_map)
-    roc_auc = roc_auc_score(known_ground_truth, known_predicted_map)
+
+    ground_truth_flat = ground_truth.flatten()
+    predicted_map_flat = predicted_map.flatten()
+    fpr, tpr, thresholds = roc_curve(ground_truth_flat, predicted_map_flat)
+    roc_auc = roc_auc_score(ground_truth_flat, predicted_map_flat)
 
 
-    nll = log_loss(known_ground_truth, known_predicted_map, labels=[0, 1])
+    nll = log_loss(ground_truth_flat, predicted_map_flat, labels=[0, 1])
     
     metrics = {
-        'accuracy': accuracy,
-        'false_negatives': false_negatives,
-        'false_positives': false_positives,
-        'unknown_percentage': unknown_percentage,
-        'observed_area_percentage': observed_area_percentage,
+        # 'accuracy': accuracy,
+        # 'false_negatives': false_negatives,
+        # 'false_positives': false_positives,
+        'unknown_percentage': unknown_percentage * 100,
+        'classified_area_percentage': classified_area_percentage * 100,
         'roc_auc': roc_auc,
         'nll': nll,
         'fpr': fpr,

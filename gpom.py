@@ -6,6 +6,7 @@ import torch as t
 import gpytorch as gp
 from scipy.stats import norm
 import time
+from env_utils import ROBOT_CONFIG
 
 
 
@@ -36,9 +37,9 @@ def create_point_dataset(data: Dict, free_per_beam: int = 20) -> Tuple[np.ndarra
             bearing_rad = math.radians(bearing)
             
             # For max range readings, use max_range as the end point
-            if range_val >= 3.0:
-                end_x = robot_x + 3.0 * math.cos(robot_theta + bearing_rad)
-                end_y = robot_y + 3.0 * math.sin(robot_theta + bearing_rad)
+            if range_val >= ROBOT_CONFIG['lidar_range']:
+                end_x = robot_x + ROBOT_CONFIG['lidar_range'] * math.cos(robot_theta + bearing_rad)
+                end_y = robot_y + ROBOT_CONFIG['lidar_range'] * math.sin(robot_theta + bearing_rad)
             else:
                 end_x = robot_x + range_val * math.cos(robot_theta + bearing_rad)
                 end_y = robot_y + range_val * math.sin(robot_theta + bearing_rad)
@@ -126,13 +127,13 @@ def train_gp_model(model, likelihood, train_x, train_y, device):
     likelihood.train()
     
     # Use Adam optimizer instead of LBFGS for better stability
-    optimizer = t.optim.Adam(model.parameters(), lr=0.01)
+    optimizer = t.optim.Adam(model.parameters(), lr=0.1)
     mll = gp.mlls.ExactMarginalLogLikelihood(likelihood, model)
     
     # Training parameters
-    n_epochs = 100
+    n_epochs = 200
     best_loss = float('inf')
-    patience = 10
+    patience = 20
     no_improve_count = 0
     
     def closure():
@@ -171,24 +172,57 @@ def train_gp_model(model, likelihood, train_x, train_y, device):
         print(f'Lengthscale: {model.covar_module.lengthscale.item():.3f}')
         print(f'Noise: {model.likelihood.noise.item():.3f}')
 
+def add_noise_to_readings(readings, range_std=0.1, angle_std=0.0):
+    """Add noise to LiDAR readings."""
+    noisy_readings = []
+    for reading_list in readings:
+        noisy_reading_list = []
+        for reading in reading_list:
+            # Convert tuple to numpy array
+            reading_array = np.array(reading)
+            if range_std > 0:
+                # Add range noise and ensure it's positive
+                noisy_range = reading_array[0] + np.random.normal(0, range_std)
+                reading_array[0] = max(0.0, noisy_range)  # Ensure range is not negative
+            if angle_std > 0:
+                # Add angle noise
+                reading_array[1] += np.random.normal(0, angle_std)
+            noisy_reading_list.append(reading_array)
+        noisy_readings.append(noisy_reading_list)
+    return noisy_readings
+
+
+
+
 def main():
-    train = 0
+    train = 1
     store_results = 0
 
     device = t.device('cuda' if t.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
 
     # Load the data
-    data = np.load('robot_data.npy', allow_pickle=True).item()
-    
+    data = np.load('robot_data_large1.npy', allow_pickle=True).item()
+
     # Create point dataset
-    free_points, occupied_points = create_point_dataset(data['robot2'], free_per_beam=5)
+    noisy_data = {
+        'robot1': {
+            'poses': data['robot1']['poses'],
+            'lidar_readings': add_noise_to_readings(data['robot1']['lidar_readings'], range_std=0.05)
+        },
+        'robot2': {
+            'poses': data['robot2']['poses'],
+            'lidar_readings': add_noise_to_readings(data['robot2']['lidar_readings'], range_std=0.0)
+        }
+    }
+
+    free_points, occupied_points = create_point_dataset(noisy_data['robot2'], free_per_beam=5)
 
     print(free_points.shape)
     print(occupied_points.shape)
 
     # Reduce number of points to prevent memory issues
-    temp_num_of_points = 10000  # Reduced from 10000
+    temp_num_of_points = 5000  # Reduced from 10000
 
     if train:
         try:
@@ -216,10 +250,10 @@ def main():
             print(f"Time taken to train the model: {end_time - start_time} seconds")
 
             # Save model
-            t.save(model.state_dict(), 'model2_state.pth')
-            t.save(likelihood.state_dict(), 'likelihood2.pth')    
-            np.save('train_x2.npy', train_x.cpu().numpy())
-            np.save('train_y2.npy', train_y.cpu().numpy())
+            t.save(model.state_dict(), 'gpom_data/large_0_noise/model2_state_large_5000.pth')
+            t.save(likelihood.state_dict(), 'gpom_data/large_0_noise/likelihood2_large_5000.pth')    
+            np.save('gpom_data/large_0_noise/train_x2_large_5000.npy', train_x.cpu().numpy())
+            np.save('gpom_data/large_0_noise/train_y2_large_5000.npy', train_y.cpu().numpy())
 
         except RuntimeError as e:
             if "out of memory" in str(e):
@@ -239,23 +273,23 @@ def main():
                 raise e
 
     elif store_results:
-        train_x = t.tensor(np.load('train_x2.npy'), dtype=t.float32).to(device)
-        train_y = t.tensor(np.load('train_y2.npy'), dtype=t.float32).to(device)
+        train_x = t.tensor(np.load('gpom_data/large_0_noise/train_x2_large_1000.npy'), dtype=t.float32).to(device)
+        train_y = t.tensor(np.load('gpom_data/large_0_noise/train_y2_large_1000.npy'), dtype=t.float32).to(device)
 
         likelihood = gp.likelihoods.GaussianLikelihood().to(device)
         model = ExactGPModel(train_x, train_y, likelihood).to(device)
 
         # Load model
-        model.load_state_dict(t.load('model2_state.pth'))
-        likelihood.load_state_dict(t.load('likelihood2.pth'))
+        model.load_state_dict(t.load('gpom_data/large_0_noise/model2_state_large_1000.pth'))
+        likelihood.load_state_dict(t.load('gpom_data/large_0_noise/likelihood2_large_1000.pth'))
 
      # Map size
 
         start_time = time.time()
         x_min = 0
-        x_max = 12
+        x_max = 300
         y_min = 0
-        y_max = 8
+        y_max =200
 
         # Test points on a grid in the range of the map
         resolution = 0.05
@@ -267,32 +301,60 @@ def main():
 
         model.eval()
         likelihood.eval()
-        with t.no_grad(), gp.settings.fast_pred_var():
-            f_pred = model(test_x)
-            y_pred = likelihood(f_pred)
 
-        # Convert predictions to numpy arrays
-        # f_pred_np = f_pred.mean.cpu().numpy()
-        y_pred_np = y_pred.mean.cpu().numpy()
-        y_var_np = y_pred.variance.cpu().numpy()
+        batching = True
+
+        if batching:
+            batch_size = 10000
+
+            num_batches = len(test_x) // batch_size
+
+            y_pred_list = []
+            y_var_list = []
+
+            with t.no_grad(), gp.settings.fast_pred_var():
+                for i in range(0, test_x.shape[0], batch_size):
+                    print(f"Batch {i//batch_size} of {num_batches}")
+                    test_x_batch = test_x[i:i + batch_size]
+                    
+                    f_pred = model(test_x_batch)
+                    y_pred = likelihood(f_pred)
+                    
+                    y_pred_list.append(y_pred.mean.cpu())
+                    y_var_list.append(y_pred.variance.cpu())
+
+            # Convert predictions to numpy arrays
+            # f_pred_np = f_pred.mean.cpu().numpy()
+            y_pred_np = t.cat(y_pred_list, dim=0).cpu().numpy()
+            y_var_np = t.cat(y_var_list, dim=0).cpu().numpy()
+
+        else:
+            with t.no_grad(), gp.settings.fast_pred_var():
+                f_pred = model(test_x)
+                y_pred = likelihood(f_pred)
+
+            y_pred_np = y_pred.mean.cpu().numpy()
+            y_var_np = y_pred.variance.cpu().numpy()
+            
+
         end_time = time.time()
         print(f"Time taken to predict: {end_time - start_time} seconds")
 
         ## Save predictions
-        np.save('y_pred_np2.npy', y_pred_np)
-        np.save('y_var_np2.npy', y_var_np)
+        np.save('gpom_data/large_0_noise/y_pred_np2_large_1000.npy', y_pred_np)
+        np.save('gpom_data/large_0_noise/y_var_np2_large_1000.npy', y_var_np)
 
     else:
-        y_pred_np = np.load('y_pred_np1.npy')
-        y_var_np = np.load('y_var_np1.npy')
+        y_pred_np = np.load('y_pred_np1_mid_1000.npy')
+        y_var_np = np.load('y_var_np1_mid_1000.npy')
 
-        train_x = np.load('train_x1.npy')
-        train_y = np.load('train_y1.npy')
+        train_x = np.load('train_x1_mid_1000.npy')
+        train_y = np.load('train_y1_mid_1000.npy')
         # Map size
         x_min = 0
-        x_max = 12
+        x_max = 30
         y_min = 0
-        y_max = 8
+        y_max = 20
 
         # Test points on a grid in the range of the map
         resolution = 0.05
